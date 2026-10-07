@@ -1,0 +1,30 @@
+{
+  "name": "@gran-negocio/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node build/index.js",
+    "typecheck": "tsc --build",
+    "test": "vitest run",
+    "start:e2e": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@gran-negocio/engine": "workspace:*",
+    "@gran-negocio/shared": "workspace:*",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.19.1",
+    "socket.io-client": "^4.8.4",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15"
+  }
+}

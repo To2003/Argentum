@@ -1,0 +1,10 @@
+# Everything is LF in the repo, including on Windows checkouts: the linters,
+# Prettier and the snapshot tests all assume it.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.mp3 binary
+*.ogg binary
+*.woff2 binary

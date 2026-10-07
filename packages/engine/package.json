@@ -1,0 +1,16 @@
+{
+  "name": "@gran-negocio/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gran-negocio/shared": "workspace:*"
+  }
+}

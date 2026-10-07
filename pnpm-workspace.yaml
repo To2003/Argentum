@@ -1,0 +1,9 @@
+packages:
+  - 'packages/*'
+  - 'apps/*'
+
+# pnpm 10 no corre scripts de instalación de dependencias salvo que estén
+# listadas acá. esbuild (lo usan tsx y tsup) necesita el suyo para bajar el
+# binario de la plataforma.
+onlyBuiltDependencies:
+  - esbuild
