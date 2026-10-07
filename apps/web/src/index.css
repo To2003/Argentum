@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens de marca. Celeste, blanco y dorado con acentos cálidos, sin ser una
+ * bandera literal (SPEC.md §7.1). Los temas de tablero llegan en M6.
+ */
+@theme {
+  --color-celeste: #74acdf;
+  --color-dorado: #f5b700;
+  --color-noche: #0b1f3a;
+  --color-arena: #f7f3ea;
+}
+
+body {
+  background-color: var(--color-arena);
+  color: var(--color-noche);
+}
