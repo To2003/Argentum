@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "vitest.explorer",
+    "ms-playwright.playwright",
+    "usernamehw.errorlens",
+    "bierner.markdown-mermaid",
+    "eamodio.gitlens",
+    "yoavbls.pretty-ts-errors",
+    "rangav.vscode-thunder-client"
+  ]
+}
