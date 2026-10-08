@@ -4,5 +4,5 @@
     "rootDir": ".",
     "outDir": "../../.tsbuild/shared"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "data/*.json"]
 }

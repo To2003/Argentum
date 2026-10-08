@@ -9,5 +9,9 @@
   "scripts": {
     "typecheck": "tsc --build",
     "test": "vitest run"
-  }
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "sideEffects": false
 }
