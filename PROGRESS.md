@@ -10,7 +10,7 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M0   | Fundaciones: monorepo, TS strict, lint, tests, CI, docs | ✅ Completado |
 | M1   | Datos: tablero, cartas, RulesConfig, zod, i18n          | ✅ Completado |
 | M2   | Engine núcleo                                           | ✅ Completado |
-| M3   | Engine avanzado                                         | ⬜ Pendiente  |
+| M3   | Engine avanzado                                         | ✅ Completado |
 | M4   | Server de juego                                         | ⬜ Pendiente  |
 | M5   | Cliente base                                            | ⬜ Pendiente  |
 | M6   | Juice y visuales                                        | ⬜ Pendiente  |
@@ -18,6 +18,43 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M8   | Bots y simulador de balance                             | ⬜ Pendiente  |
 | M9   | Pulido                                                  | ⬜ Pendiente  |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M3 — Engine avanzado ✅ (modo autónomo)
+
+Hecho sin consultar: cada decisión está en `REVIEW.md` y en SPEC §15.5.
+
+**Qué quedó hecho** (`packages/engine`)
+
+- **Subastas** (fase `auction` con `returnTo` y cola): al rechazar una compra (en
+  `onPurchaseDeclined()`), en la quiebra ante el banco (una por una) y para la última casa u
+  hotel del banco (escasez, entre los interesados).
+- **Construcción**: grupo completo y sin hipotecas, pareja, 32 casas / 12 hoteles, hotel que
+  devuelve 4 casas; venta pareja a la mitad; `sellAllBuildings` por grupo.
+- **Hipotecas**: hipotecar, levantar con `mortgageLiftCost`, 10 % al recibir hipotecadas.
+- **Trueques** (`state.trade`, superpuesto): proponer, contraofertar, aceptar (revalida),
+  rechazar, cancelar; plata, propiedades y "Salí gratis".
+- **Deuda completa**: vender, hipotecar o trocar para juntar plata y `payDebt`; quiebra ante
+  jugador (con el 10 % de las hipotecadas) o ante el banco (subasta).
+- **Fin de partida**: último en pie, `maxRounds` o `timeUp` (actor `system`), por
+  patrimonio neto (`netWorth`) con desempate.
+- `legalActions` con parámetros (casilla, grupo, puja mínima) y `actorsOf`.
+- Diagrama `docs/turn-fsm.mmd` actualizado (subasta y fase libre) y validado con Mermaid.
+
+**Tests**: 333 en total (233 del engine). Nuevos: subasta (11), construcción y escasez (21),
+hipotecas y deuda (11), trueques (14), fin de partida (8). Fuzz con dos escenarios (desde cero
+y partida avanzada con escasez de casas) y las invariantes nuevas: 32/12 exactos, construcción
+pareja, edificios solo en grupos completos y sin hipotecas, hipotecadas sin edificios, trueque
+y subasta coherentes. En 30 partidas avanzadas: 1317 construcciones, 6 subastas de la última
+casa, 182 trueques aceptados.
+
+**Cobertura del engine**: sobre el umbral del 90 % en sentencias, ramas, funciones y líneas.
+
+**Bug encontrado por el fuzz**: cuando el jugador del turno quebraba ante el banco, la subasta
+de sus propiedades se abría con él como "jugador del turno". Ahora su turno termina antes.
+
+**Cómo probarlo**: `pnpm test`; hot-seat en `/?debug=1` con "Auto ×200".
 
 ---
 

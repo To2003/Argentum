@@ -7,16 +7,19 @@
 %% - Las flechas nombran la acción que las dispara.
 %%
 %% Interrupciones:
-%% - inDebt es una fase con `returnTo` (finishResolution | moveAfterJailFine).
-%% - auction (M3) será una fase con `returnTo`, abierta por declineProperty.
-%% - El trueque (M3) NO es una fase: es estado superpuesto (`state.trade`) que
-%%   convive con postRoll e inDebt.
+%% - inDebt y auction son fases con `returnTo` (finishResolution |
+%%   moveAfterJailFine | restorePhase).
+%% - El trueque NO es una fase: es estado superpuesto (`state.trade`).
+%%   proposeTrade lo abre (en waitingRoll, jailDecision, postRoll o inDebt) y
+%%   el receptor responde fuera de turno con acceptTrade / rejectTrade /
+%%   counterTrade; el que propuso puede cancelTrade. endTurn lo cancela.
 stateDiagram-v2
     state "Esperando tirada" as waitingRoll
     state "Preso: pagar, usar carta o tirar" as jailDecision
     state "Decidiendo la compra" as awaitingPurchase
     state "Después de tirar" as postRoll
     state "En deuda (actúa el deudor)" as inDebt
+    state "Subasta (pujan todos los participantes)" as auction
     state "Fin de partida" as gameOver
     state "Tirar → mover → Salida → resolver casilla (encadenado ≤ 4)" as _resolve
 
@@ -35,26 +38,40 @@ stateDiagram-v2
     _resolve --> waitingRoll: sacó dobles (y < 3)
     _resolve --> postRoll: sin dobles, o Vas preso (casilla o carta)
 
-    awaitingPurchase --> postRoll: buyProperty / declineProperty
-    awaitingPurchase --> waitingRoll: buyProperty / declineProperty, con dobles
+    awaitingPurchase --> postRoll: buyProperty
+    awaitingPurchase --> auction: declineProperty (con auctionOnDecline)
+    awaitingPurchase --> waitingRoll: buyProperty / declineProperty sin subasta, con dobles
+
+    auction --> auction: bid / passAuction (sigue abierta, o la próxima de la cola)
+    auction --> postRoll: bid / passAuction, se decide (returnTo)
+
+    waitingRoll --> auction: buildHouse, última casa u hotel con interesados
+    postRoll --> auction: buildHouse, última casa u hotel con interesados
 
     postRoll --> waitingRoll: endTurn, siguiente jugador libre
     postRoll --> jailDecision: endTurn, siguiente jugador preso
+    postRoll --> gameOver: endTurn, se pasó de maxRounds (patrimonio)
 
-    inDebt --> inDebt: declareBankruptcy, quedan deudores en la cola
-    inDebt --> postRoll: declareBankruptcy de otro (returnTo)
+    inDebt --> inDebt: payDebt / declareBankruptcy, quedan deudores en la cola
+    inDebt --> postRoll: payDebt / declareBankruptcy de otro (returnTo)
+    inDebt --> auction: declareBankruptcy ante el banco (subasta una por una)
     inDebt --> waitingRoll: declareBankruptcy del jugador del turno, pasa al siguiente
     inDebt --> gameOver: declareBankruptcy, queda uno solo
 
     gameOver --> [*]
 
-    note right of awaitingPurchase
-        TODO(M3): con auctionOnDecline,
-        declineProperty abre la fase auction
-        (returnTo: finishResolution).
-    end note
-    note left of postRoll
-        M3: construir, hipotecar y proponer
-        trueques (state.trade, superpuesto).
+    note right of postRoll
+        Fase libre (también en waitingRoll y jailDecision):
+        buildHouse, sellBuilding, sellAllBuildings,
+        mortgage, unmortgage, proposeTrade.
         Preso también puede.
+    end note
+    note left of inDebt
+        Para juntar plata: sellBuilding, sellAllBuildings,
+        mortgage, proposeTrade (también en awaitingPurchase,
+        menos el trueque).
+    end note
+    note right of gameOver
+        timeUp (actor system, partida corta por tiempo)
+        termina desde cualquier fase, por patrimonio.
     end note

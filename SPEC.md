@@ -518,3 +518,18 @@ Registro de decisiones tomadas durante el desarrollo. Ante conflicto con el rest
 - **Efectos de carta**: son los **10 tipos** de §6. `moveToNearest` tiene dos variantes en el esquema (servicio con `diceMultiplier`, subte con `rentMultiplier`), por eso la unión de zod tiene 11 ramas.
 - **Hot-seat de debug** (`?debug=1`, solo en dev): sus etiquetas no pasan por i18n.
 
+### 15.5 Engine avanzado (M3)
+Decisiones tomadas en modo autónomo (detalle y cómo revertirlas en `REVIEW.md`).
+1. **Subasta**: pujan todos los participantes a la vez (no hay turno dentro de la subasta). Puja mínima: `auctionStartBid` o la más alta + $1; entera y ≤ efectivo. El que va ganando no puede pasar. Cierra cuando todos los demás pasaron (o todos sin pujar: queda en el banco). **El engine no tiene reloj**: al vencer `auctionBidSeconds` sin pujas nuevas, el server pasa por los participantes que no van ganando.
+2. **Quiebra ante el banco**: primero termina el turno del quebrado y arranca el del siguiente; recién ahí se subastan sus propiedades una por una (por índice), sin edificios ni hipoteca. Así el jugador del turno nunca es un quebrado.
+3. **Última casa/hotel (escasez, §5.4)**: si un jugador quiere construir la **última** casa (u hotel) del banco y otro jugador también podría construirla y paga su precio de lista, se subasta entre los interesados. Puja mínima de cada uno: el costo de casa de su grupo. Si gana el que la pidió, va donde la pidió; si gana otro, a su primera propiedad válida por índice. Al cerrar, vuelve la fase del que construía.
+4. **Vender un hotel** lo vuelve a 4 casas solo si el banco las tiene; si no, `sellAllBuildings` vende todos los edificios del grupo a la mitad (siempre posible).
+5. **Recibir hipotecadas** (trueque o quiebra ante un jugador): se paga el 10 % (`mortgageInterest`) al recibirlas y quedan hipotecadas; levantarlas después cuesta valor + 10 %. Un trueque solo es válido si cada lado puede pagar ese 10 % con lo que le queda: aceptar nunca abre una deuda. En una quiebra, si el acreedor no puede pagarlo, queda él en deuda con el banco.
+6. **Trueque** (`state.trade`, superpuesto): lo propone el jugador del turno en `waitingRoll`, `jailDecision` o `postRoll`, o el deudor en `inDebt`. Uno a la vez. El receptor responde fuera de turno (aceptar, rechazar o contraofertar, que invierte los roles); el que propuso puede cancelar. Solo propiedades de grupos sin edificios. Al aceptar se revalida todo. `endTurn` cancela el trueque abierto; durante una subasta no se responde. La expiración la maneja el server (rechaza en nombre del receptor).
+7. **Juntar plata para comprar**: en `awaitingPurchase` se puede vender e hipotecar antes de decidir.
+8. **Patrimonio neto** (§5.8): efectivo + precio de cada propiedad (una hipotecada vale precio − hipoteca) + edificios al costo (hotel = 5 × costo de casa). Desempate: más efectivo; después, el primero en el orden de turno.
+9. **Rondas**: una ronda empieza cada vez que el turno vuelve al primero del orden. Con `maxRounds`, la partida termina al pasarse (al cambiar de turno), por patrimonio.
+10. **Tiempo**: `timeUp` lo manda el server con el actor reservado `system` cuando vence `gameDurationMinutes`; termina en cualquier fase (incluso a mitad de una subasta), por patrimonio.
+11. Lo que se le debía a un jugador que quebró pasa a deberse al banco. Un trueque en el que participa el quebrado se invalida.
+12. `legalActions` enumera las acciones por casilla y por grupo; de las pujas devuelve solo la mínima, y los trueques no se enumeran (combinatorios).
+
