@@ -1,0 +1,377 @@
+{
+  "$comment": "Fuente de verdad del tablero (SPEC.md §4). Valores clásicos; los nombres salen de i18n por nameKey.",
+  "tiles": [
+    {
+      "index": 0,
+      "id": "go",
+      "kind": "go",
+      "nameKey": "tile.go"
+    },
+    {
+      "index": 1,
+      "id": "caminito",
+      "kind": "property",
+      "nameKey": "tile.caminito",
+      "group": "brown",
+      "price": 60,
+      "mortgage": 30,
+      "houseCost": 50,
+      "rent": [2, 10, 30, 90, 160, 250]
+    },
+    {
+      "index": 2,
+      "id": "community1",
+      "kind": "community",
+      "nameKey": "tile.community"
+    },
+    {
+      "index": 3,
+      "id": "sanTelmo",
+      "kind": "property",
+      "nameKey": "tile.sanTelmo",
+      "group": "brown",
+      "price": 60,
+      "mortgage": 30,
+      "houseCost": 50,
+      "rent": [4, 20, 60, 180, 320, 450]
+    },
+    {
+      "index": 4,
+      "id": "incomeTax",
+      "kind": "tax",
+      "nameKey": "tile.incomeTax",
+      "amount": 200
+    },
+    {
+      "index": 5,
+      "id": "subwayA",
+      "kind": "subway",
+      "nameKey": "tile.subwayA",
+      "price": 200,
+      "mortgage": 100,
+      "rent": [25, 50, 100, 200]
+    },
+    {
+      "index": 6,
+      "id": "recoleta",
+      "kind": "property",
+      "nameKey": "tile.recoleta",
+      "group": "lightBlue",
+      "price": 100,
+      "mortgage": 50,
+      "houseCost": 50,
+      "rent": [6, 30, 90, 270, 400, 550]
+    },
+    {
+      "index": 7,
+      "id": "chance1",
+      "kind": "chance",
+      "nameKey": "tile.chance"
+    },
+    {
+      "index": 8,
+      "id": "rosedal",
+      "kind": "property",
+      "nameKey": "tile.rosedal",
+      "group": "lightBlue",
+      "price": 100,
+      "mortgage": 50,
+      "houseCost": 50,
+      "rent": [6, 30, 90, 270, 400, 550]
+    },
+    {
+      "index": 9,
+      "id": "teatroColon",
+      "kind": "property",
+      "nameKey": "tile.teatroColon",
+      "group": "lightBlue",
+      "price": 120,
+      "mortgage": 60,
+      "houseCost": 50,
+      "rent": [8, 40, 100, 300, 450, 600]
+    },
+    {
+      "index": 10,
+      "id": "jail",
+      "kind": "jail",
+      "nameKey": "tile.jail"
+    },
+    {
+      "index": 11,
+      "id": "tigre",
+      "kind": "property",
+      "nameKey": "tile.tigre",
+      "group": "pink",
+      "price": 140,
+      "mortgage": 70,
+      "houseCost": 100,
+      "rent": [10, 50, 150, 450, 625, 750]
+    },
+    {
+      "index": 12,
+      "id": "edenor",
+      "kind": "utility",
+      "nameKey": "tile.edenor",
+      "price": 150,
+      "mortgage": 75,
+      "multipliers": [4, 10],
+      "brand": true
+    },
+    {
+      "index": 13,
+      "id": "laPlata",
+      "kind": "property",
+      "nameKey": "tile.laPlata",
+      "group": "pink",
+      "price": 140,
+      "mortgage": 70,
+      "houseCost": 100,
+      "rent": [10, 50, 150, 450, 625, 750]
+    },
+    {
+      "index": 14,
+      "id": "marDelPlata",
+      "kind": "property",
+      "nameKey": "tile.marDelPlata",
+      "group": "pink",
+      "price": 160,
+      "mortgage": 80,
+      "houseCost": 100,
+      "rent": [12, 60, 180, 500, 700, 900]
+    },
+    {
+      "index": 15,
+      "id": "subwayB",
+      "kind": "subway",
+      "nameKey": "tile.subwayB",
+      "price": 200,
+      "mortgage": 100,
+      "rent": [25, 50, 100, 200]
+    },
+    {
+      "index": 16,
+      "id": "monumentoBandera",
+      "kind": "property",
+      "nameKey": "tile.monumentoBandera",
+      "group": "orange",
+      "price": 180,
+      "mortgage": 90,
+      "houseCost": 100,
+      "rent": [14, 70, 200, 550, 750, 950]
+    },
+    {
+      "index": 17,
+      "id": "community2",
+      "kind": "community",
+      "nameKey": "tile.community"
+    },
+    {
+      "index": 18,
+      "id": "ibera",
+      "kind": "property",
+      "nameKey": "tile.ibera",
+      "group": "orange",
+      "price": 180,
+      "mortgage": 90,
+      "houseCost": 100,
+      "rent": [14, 70, 200, 550, 750, 950]
+    },
+    {
+      "index": 19,
+      "id": "iguazu",
+      "kind": "property",
+      "nameKey": "tile.iguazu",
+      "group": "orange",
+      "price": 200,
+      "mortgage": 100,
+      "houseCost": 100,
+      "rent": [16, 80, 220, 600, 800, 1000]
+    },
+    {
+      "index": 20,
+      "id": "longWeekend",
+      "kind": "freeRest",
+      "nameKey": "tile.longWeekend"
+    },
+    {
+      "index": 21,
+      "id": "carlosPaz",
+      "kind": "property",
+      "nameKey": "tile.carlosPaz",
+      "group": "red",
+      "price": 220,
+      "mortgage": 110,
+      "houseCost": 150,
+      "rent": [18, 90, 250, 700, 875, 1050]
+    },
+    {
+      "index": 22,
+      "id": "chance2",
+      "kind": "chance",
+      "nameKey": "tile.chance"
+    },
+    {
+      "index": 23,
+      "id": "cumbrecita",
+      "kind": "property",
+      "nameKey": "tile.cumbrecita",
+      "group": "red",
+      "price": 220,
+      "mortgage": 110,
+      "houseCost": 150,
+      "rent": [18, 90, 250, 700, 875, 1050]
+    },
+    {
+      "index": 24,
+      "id": "altaGracia",
+      "kind": "property",
+      "nameKey": "tile.altaGracia",
+      "group": "red",
+      "price": 240,
+      "mortgage": 120,
+      "houseCost": 150,
+      "rent": [20, 100, 300, 750, 925, 1100]
+    },
+    {
+      "index": 25,
+      "id": "subwayC",
+      "kind": "subway",
+      "nameKey": "tile.subwayC",
+      "price": 200,
+      "mortgage": 100,
+      "rent": [25, 50, 100, 200]
+    },
+    {
+      "index": 26,
+      "id": "cafayate",
+      "kind": "property",
+      "nameKey": "tile.cafayate",
+      "group": "yellow",
+      "price": 260,
+      "mortgage": 130,
+      "houseCost": 150,
+      "rent": [22, 110, 330, 800, 975, 1150]
+    },
+    {
+      "index": 27,
+      "id": "humahuaca",
+      "kind": "property",
+      "nameKey": "tile.humahuaca",
+      "group": "yellow",
+      "price": 260,
+      "mortgage": 130,
+      "houseCost": 150,
+      "rent": [22, 110, 330, 800, 975, 1150]
+    },
+    {
+      "index": 28,
+      "id": "aysa",
+      "kind": "utility",
+      "nameKey": "tile.aysa",
+      "price": 150,
+      "mortgage": 75,
+      "multipliers": [4, 10],
+      "brand": true
+    },
+    {
+      "index": 29,
+      "id": "aconcagua",
+      "kind": "property",
+      "nameKey": "tile.aconcagua",
+      "group": "yellow",
+      "price": 280,
+      "mortgage": 140,
+      "houseCost": 150,
+      "rent": [24, 120, 360, 850, 1025, 1200]
+    },
+    {
+      "index": 30,
+      "id": "goToJail",
+      "kind": "goToJail",
+      "nameKey": "tile.goToJail"
+    },
+    {
+      "index": 31,
+      "id": "peritoMoreno",
+      "kind": "property",
+      "nameKey": "tile.peritoMoreno",
+      "group": "green",
+      "price": 300,
+      "mortgage": 150,
+      "houseCost": 200,
+      "rent": [26, 130, 390, 900, 1100, 1275]
+    },
+    {
+      "index": 32,
+      "id": "bariloche",
+      "kind": "property",
+      "nameKey": "tile.bariloche",
+      "group": "green",
+      "price": 300,
+      "mortgage": 150,
+      "houseCost": 200,
+      "rent": [26, 130, 390, 900, 1100, 1275]
+    },
+    {
+      "index": 33,
+      "id": "community3",
+      "kind": "community",
+      "nameKey": "tile.community"
+    },
+    {
+      "index": 34,
+      "id": "ushuaia",
+      "kind": "property",
+      "nameKey": "tile.ushuaia",
+      "group": "green",
+      "price": 320,
+      "mortgage": 160,
+      "houseCost": 200,
+      "rent": [28, 150, 450, 1000, 1200, 1400]
+    },
+    {
+      "index": 35,
+      "id": "subwayD",
+      "kind": "subway",
+      "nameKey": "tile.subwayD",
+      "price": 200,
+      "mortgage": 100,
+      "rent": [25, 50, 100, 200]
+    },
+    {
+      "index": 36,
+      "id": "chance3",
+      "kind": "chance",
+      "nameKey": "tile.chance"
+    },
+    {
+      "index": 37,
+      "id": "obelisco",
+      "kind": "property",
+      "nameKey": "tile.obelisco",
+      "group": "darkBlue",
+      "price": 350,
+      "mortgage": 175,
+      "houseCost": 200,
+      "rent": [35, 175, 500, 1100, 1300, 1500]
+    },
+    {
+      "index": 38,
+      "id": "luxuryTax",
+      "kind": "tax",
+      "nameKey": "tile.luxuryTax",
+      "amount": 100
+    },
+    {
+      "index": 39,
+      "id": "puertoMadero",
+      "kind": "property",
+      "nameKey": "tile.puertoMadero",
+      "group": "darkBlue",
+      "price": 400,
+      "mortgage": 200,
+      "houseCost": 200,
+      "rent": [50, 200, 600, 1400, 1700, 2000]
+    }
+  ]
+}
