@@ -31,8 +31,10 @@ interface GameStore {
   log: readonly LoggedEvent[];
   /** El último error de una acción, para mostrarlo. */
   error: ServerError | null;
-  /** Eventos de la última actualización (para animaciones, M6). */
+  /** Eventos de la última actualización (para las animaciones). */
   lastEvents: readonly GameEvent[];
+  /** Sube con cada snapshot o actualización: dispara la animación de esa tanda. */
+  updateSeq: number;
 
   create: (name: string) => Promise<Session | ServerError>;
   join: (code: string, name: string) => Promise<Session | ServerError>;
@@ -64,7 +66,7 @@ export const useGame = create<GameStore>()((set, get) => {
       set({ room });
     });
     socket.on('game:snapshot', ({ view, timers }) => {
-      set({ view, timers, lastEvents: [] });
+      set((state) => ({ view, timers, lastEvents: [], updateSeq: state.updateSeq + 1 }));
     });
     socket.on('game:update', ({ view, timers, events }) => {
       const logged = events.map((event) => ({ id: nextEventId++, event }));
@@ -72,6 +74,7 @@ export const useGame = create<GameStore>()((set, get) => {
         view,
         timers,
         lastEvents: events,
+        updateSeq: state.updateSeq + 1,
         log: [...state.log, ...logged].slice(-LOG_LIMIT),
       }));
     });
@@ -119,6 +122,7 @@ export const useGame = create<GameStore>()((set, get) => {
     log: [],
     error: null,
     lastEvents: [],
+    updateSeq: 0,
 
     create: (name) => enter('room:create', { name }),
     join: (code, name) => enter('room:join', { code, name }),
