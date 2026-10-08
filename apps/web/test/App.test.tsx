@@ -17,9 +17,13 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Crear partida' })).toBeInTheDocument();
   });
 
-  it('muestra la sala con el código en mayúsculas', () => {
+  it('una sala sin sesión guardada pide el nombre para entrar, con el código en mayúsculas', async () => {
     renderAt('/sala/abc123');
-    expect(screen.getByRole('heading', { name: 'Sala ABC123' })).toBeInTheDocument();
+    // La sala se carga como chunk aparte (lazy).
+    expect(
+      await screen.findByRole('heading', { name: 'Te invitaron a la sala ABC123' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entrar' })).toBeDisabled();
   });
 
   it('cae en 404 para rutas desconocidas', () => {
