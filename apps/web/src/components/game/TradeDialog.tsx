@@ -171,7 +171,7 @@ function BundleSummary({
   const empty =
     bundle.cash === 0 && bundle.properties.length === 0 && bundle.jailFreeCards.length === 0;
   return (
-    <section className="rounded-xl bg-white p-3">
+    <section className="rounded-xl bg-superficie p-3">
       <h3 className="mb-2 font-bold">{title}</h3>
       {empty ? (
         <p className="text-tinta/60">{t('trade.none')}</p>
@@ -236,7 +236,7 @@ function TradeEditor({
             {others.map((player) => (
               <label
                 key={player.id}
-                className={`flex cursor-pointer items-center gap-2 rounded-full bg-white px-3 py-1.5 ring-2 ${to === player.id ? 'ring-tinta' : 'ring-transparent'}`}
+                className={`flex cursor-pointer items-center gap-2 rounded-full bg-superficie px-3 py-1.5 ring-2 ${to === player.id ? 'ring-tinta' : 'ring-transparent'}`}
               >
                 <input
                   type="radio"
@@ -319,7 +319,7 @@ function BundleEditor({
     list.includes(item) ? list.filter((value) => value !== item) : [...list, item];
 
   return (
-    <section className="rounded-xl bg-white p-3" data-testid={`bundle-${owner}`}>
+    <section className="rounded-xl bg-superficie p-3" data-testid={`bundle-${owner}`}>
       <h3 className="mb-2 font-bold">{title}</h3>
       <label className="mb-3 flex flex-col gap-1 text-sm">
         {t('trade.cash')}

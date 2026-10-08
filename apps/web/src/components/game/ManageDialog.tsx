@@ -76,7 +76,7 @@ export function ManageDialog({
       );
     }
     return (
-      <li key={index} className="rounded-lg bg-white p-3" data-testid={`manage-${index}`}>
+      <li key={index} className="rounded-lg bg-superficie p-3" data-testid={`manage-${index}`}>
         <div className="mb-2 flex items-baseline justify-between gap-2">
           <span className="font-bold">{i18n.tileName(tile, view.rules.useRealBrands)}</span>
           <span className="text-sm tabular-nums text-tinta/70">

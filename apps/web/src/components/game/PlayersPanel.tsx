@@ -35,7 +35,7 @@ export function PlayersPanel({
           <li
             key={player.id}
             data-testid={`player-${player.id}`}
-            className={`min-w-[11rem] rounded-xl bg-white p-3 ring-2 lg:min-w-0 ${isTurn ? 'ring-sol' : 'ring-transparent'} ${player.bankrupt ? 'opacity-50' : ''}`}
+            className={`min-w-[11rem] rounded-xl bg-superficie p-3 ring-2 lg:min-w-0 ${isTurn ? 'ring-sol' : 'ring-transparent'} ${player.bankrupt ? 'opacity-50' : ''}`}
           >
             <div className="flex items-center gap-2">
               <TokenBadge color={tokenColor(player.tokenId)} label={player.name} active={isTurn} />

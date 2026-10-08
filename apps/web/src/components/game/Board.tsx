@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { placement } from '../../game/boardLayout.js';
 import { GROUP_COLORS } from '../../game/colors.js';
 import { i18n, t } from '../../i18n.js';
+import type { BoardTheme } from '../../look.js';
 import { TokenLayer } from './TokenLayer.js';
 
 /**
@@ -16,6 +17,7 @@ export function Board({
   center,
   positions,
   jailed,
+  theme,
 }: {
   view: PlayerView;
   onTile: (index: number) => void;
@@ -24,11 +26,13 @@ export function Board({
   positions: Readonly<Record<string, number>>;
   /** Quién está yendo preso ahora (sacude el tablero). */
   jailed: string | null;
+  theme: BoardTheme;
 }) {
   return (
     <div
       key={jailed ?? 'board'}
-      className={`board relative w-full rounded-[2%] bg-tablero p-[0.4%] shadow-[0_10px_30px_-12px_rgba(20,40,58,0.45)] ${jailed === null ? '' : 'board-shake'}`}
+      data-board-theme={theme}
+      className={`board relative w-full rounded-[2%] p-[0.4%] shadow-[0_10px_30px_-12px_rgba(20,40,58,0.45)] ${jailed === null ? '' : 'board-shake'}`}
       data-testid="board"
     >
       {BOARD.map((tile) => (
@@ -79,7 +83,7 @@ function Tile({ tile, view, onClick }: { tile: TileData; view: PlayerView; onCli
       onClick={onClick}
       aria-label={label}
       data-tile={tile.index}
-      className="relative overflow-hidden border-[0.12cqw] border-tinta/25 bg-white text-tinta transition-[box-shadow,filter] duration-500 hover:z-10 hover:brightness-95 focus-visible:z-10"
+      className="tile relative overflow-hidden border-[0.12cqw] transition-[box-shadow,filter] duration-500 hover:z-10 hover:brightness-95 focus-visible:z-10"
       style={{
         gridRow: place.row,
         gridColumn: place.col,

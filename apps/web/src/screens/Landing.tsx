@@ -39,7 +39,7 @@ export function Landing() {
       </header>
 
       <form
-        className="flex flex-col gap-4 rounded-2xl bg-white p-5"
+        className="flex flex-col gap-4 rounded-2xl bg-superficie p-5"
         onSubmit={(event) => {
           event.preventDefault();
           if (validName) void go(() => create(name.trim()));

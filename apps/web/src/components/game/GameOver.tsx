@@ -29,7 +29,7 @@ export function GameOver({ view, events }: { view: PlayerView; events: readonly 
     (a, b) => (worth[b.id] ?? b.cash) - (worth[a.id] ?? a.cash),
   );
   return (
-    <section className="rounded-xl bg-white p-5" data-testid="game-over">
+    <section className="rounded-xl bg-superficie p-5" data-testid="game-over">
       <h2 className="font-display text-3xl font-extrabold">
         {winner === undefined
           ? t('event.gameOverNone')

@@ -16,7 +16,7 @@ export function EventLog({ log, view }: { log: readonly LoggedEvent[]; view: Pla
     [log, view],
   );
   return (
-    <section aria-labelledby="log-title" className="rounded-xl bg-white p-3">
+    <section aria-labelledby="log-title" className="rounded-xl bg-superficie p-3">
       <h2 id="log-title" className="mb-2 font-display text-base font-extrabold">
         {t('log.title')}
       </h2>

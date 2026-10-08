@@ -56,7 +56,10 @@ export function Lobby() {
             {room.seats.map((seat) => {
               const token = TOKENS.find((tk) => tk.id === seat.tokenId);
               return (
-                <li key={seat.playerId} className="flex items-center gap-3 rounded-xl bg-white p-3">
+                <li
+                  key={seat.playerId}
+                  className="flex items-center gap-3 rounded-xl bg-superficie p-3"
+                >
                   {token === undefined ? (
                     <span className="h-6 w-6 rounded-full border-2 border-dashed border-tinta/30" />
                   ) : (
@@ -102,7 +105,7 @@ export function Lobby() {
                   onClick={() => {
                     void setToken(token.id);
                   }}
-                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 ring-2 disabled:opacity-40 ${chosen ? 'bg-white ring-tinta' : 'bg-white/60 ring-transparent'}`}
+                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 ring-2 disabled:opacity-40 ${chosen ? 'bg-superficie ring-tinta' : 'bg-superficie/60 ring-transparent'}`}
                 >
                   <TokenBadge color={token.color} label={t(`token.${token.id}`)} />
                   {t(`token.${token.id}`)}
@@ -156,7 +159,7 @@ export function Lobby() {
         </p>
       </section>
 
-      <section className="rounded-2xl bg-white p-5">
+      <section className="rounded-2xl bg-superficie p-5">
         <h2 className="mb-3 font-display text-xl font-extrabold">{t('lobby.rules')}</h2>
         <RulesForm
           rules={room.rules}

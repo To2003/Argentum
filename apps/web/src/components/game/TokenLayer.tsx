@@ -3,14 +3,14 @@ import { tokenColor } from '@gran-negocio/shared';
 import { tileCenter } from '../../game/boardLayout.js';
 import { TokenBadge } from '../ui.js';
 
-/** Corrimiento de cada ficha cuando comparten casilla (en % del tablero). */
+/** Corrimiento de cada ficha cuando comparten casilla (en % del tablero; la ficha mide ~3 %). */
 const OFFSETS: readonly (readonly [number, number])[] = [
   [0, 0],
-  [1.6, 0],
-  [0, 1.6],
-  [1.6, 1.6],
-  [-1.6, 0],
-  [0, -1.6],
+  [2.6, 0],
+  [-2.6, 0],
+  [1.3, -2.4],
+  [-1.3, -2.4],
+  [0, 2.4],
 ];
 
 /**

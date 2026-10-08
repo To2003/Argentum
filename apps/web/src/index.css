@@ -15,6 +15,10 @@
   --color-tablero: #e3ecf1;
   --color-fileteado: #c0392b;
   --color-ganancia: #1e7d4f;
+  /* Superficies de paneles y tarjetas (cambia con el modo oscuro). */
+  --color-superficie: #ffffff;
+  /* Tinta fija: texto sobre el sol, el celeste claro o el blanco de una carta (no cambia). */
+  --color-ink: #14283a;
 
   --color-grupo-brown: #8b5a2b;
   --color-grupo-lightBlue: #9ed3f0;
@@ -27,6 +31,65 @@
 
   --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * Modo oscuro (SPEC.md §7.1): se redefinen los tokens. Sigue al sistema salvo
+ * que la persona elija claro u oscuro en Ajustes (`data-mode` en <html>).
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode='light']) {
+    --color-papel: #0f1d2b;
+    --color-superficie: #182a3c;
+    --color-tinta: #e6eef6;
+    --color-celeste-claro: #1f3a56;
+    --color-tablero: #0b1626;
+  }
+}
+:root[data-mode='dark'] {
+  --color-papel: #0f1d2b;
+  --color-superficie: #182a3c;
+  --color-tinta: #e6eef6;
+  --color-celeste-claro: #1f3a56;
+  --color-tablero: #0b1626;
+}
+
+/* Temas del tablero (SPEC.md §7.1): variables propias, independientes del modo de la app. */
+.board {
+  --board-bg: #e3ecf1;
+  --tile-bg: #ffffff;
+  --tile-fg: #14283a;
+  --tile-line: rgb(20 40 58 / 0.25);
+  --center-fg: #14283a;
+  background: var(--board-bg);
+}
+.board[data-board-theme='night'] {
+  --board-bg: #0b1626;
+  --tile-bg: #13243a;
+  --tile-fg: #e6eef6;
+  --tile-line: rgb(116 172 223 / 0.35);
+  --center-fg: #f2b705;
+  background:
+    radial-gradient(circle at 70% 30%, rgb(242 183 5 / 0.12), transparent 40%), var(--board-bg);
+}
+.board[data-board-theme='topo'] {
+  --board-bg: #efe6d2;
+  --tile-bg: #faf6ec;
+  --tile-fg: #3b2f20;
+  --tile-line: rgb(59 47 32 / 0.3);
+  --center-fg: #3b2f20;
+  background:
+    repeating-radial-gradient(
+      circle at 35% 60%,
+      transparent 0 1.4cqw,
+      rgb(59 47 32 / 0.12) 1.4cqw 1.55cqw
+    ),
+    var(--board-bg);
+}
+.tile {
+  background: var(--tile-bg);
+  color: var(--tile-fg);
+  border-color: var(--tile-line);
 }
 
 html {

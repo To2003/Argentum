@@ -30,12 +30,12 @@ export function CardReveal({
     >
       <span className="card-flip-inner relative block h-full w-full [transform-style:preserve-3d]">
         <span
-          className={`absolute inset-0 grid place-items-center rounded-[3cqw] font-display text-[6cqw] font-extrabold text-white [backface-visibility:hidden] ${chance ? 'bg-fileteado' : 'bg-tinta'}`}
+          className={`absolute inset-0 grid place-items-center rounded-[3cqw] font-display text-[6cqw] font-extrabold text-white [backface-visibility:hidden] ${chance ? 'bg-fileteado' : 'bg-ink'}`}
         >
           {t(chance ? 'deck.chance' : 'deck.community')}
         </span>
         <span
-          className={`absolute inset-0 flex flex-col justify-between rounded-[3cqw] bg-white p-[3cqw] text-left shadow-xl ring-[0.6cqw] [backface-visibility:hidden] [transform:rotateY(180deg)] ${chance ? 'ring-fileteado' : 'ring-tinta'}`}
+          className={`absolute inset-0 flex flex-col justify-between rounded-[3cqw] bg-white p-[3cqw] text-left text-ink shadow-xl ring-[0.6cqw] [backface-visibility:hidden] [transform:rotateY(180deg)] ${chance ? 'ring-fileteado' : 'ring-ink'}`}
         >
           <span className="font-display text-[3.4cqw] font-extrabold">
             {t(chance ? 'deck.chance' : 'deck.community')}

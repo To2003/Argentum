@@ -4,8 +4,8 @@ import { t } from '../i18n.js';
 type Variant = 'primary' | 'secondary' | 'danger' | 'quiet';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-sol text-tinta hover:brightness-95 shadow-[0_2px_0_0_rgba(20,40,58,0.35)]',
-  secondary: 'bg-white text-tinta ring-2 ring-tinta/80 hover:bg-celeste-claro',
+  primary: 'bg-sol text-ink hover:brightness-95 shadow-[0_2px_0_0_rgba(20,40,58,0.35)]',
+  secondary: 'bg-superficie text-tinta ring-2 ring-tinta/80 hover:bg-celeste-claro',
   danger: 'bg-fileteado text-white hover:brightness-110',
   quiet: 'bg-transparent text-tinta underline-offset-4 hover:underline',
 };

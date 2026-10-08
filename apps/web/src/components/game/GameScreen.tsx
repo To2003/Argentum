@@ -2,6 +2,7 @@ import type { Action, GameEvent, PlayerView } from '@gran-negocio/engine';
 import type { RoomState, TimerState } from '@gran-negocio/server/protocol';
 import { useAnimation } from '../../animation/useAnimation.js';
 import { useGameSounds } from '../../audio/useGameSounds.js';
+import { useLook } from '../../look.js';
 import { SettingsDialog } from '../SettingsDialog.js';
 import type { LoggedEvent } from '../../store/game.js';
 import { CardReveal } from './CardReveal.js';
@@ -98,6 +99,7 @@ function Game({
   const animation = useAnimation(view, lastEvents, updateSeq);
   useGameSounds(lastEvents, updateSeq, view.viewerId);
   const [settings, setSettings] = useState(false);
+  const boardTheme = useLook((state) => state.boardTheme);
   const me = view.viewerId;
   const mine = view.players.find((player) => player.id === me);
   const onAct = (action: Action) => {
@@ -138,6 +140,7 @@ function Game({
               onTile={setTile}
               positions={animation.positions}
               jailed={animation.jailed}
+              theme={boardTheme}
               center={
                 <>
                   <BoardCenter

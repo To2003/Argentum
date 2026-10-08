@@ -40,7 +40,7 @@ export function BoardCenter({
         ))}
         <circle cx="100" cy="100" r="38" fill="#f2b705" />
       </svg>
-      <p className="relative text-center font-display text-[7.5cqw] font-extrabold leading-[0.85] tracking-[-0.03em] text-tinta">
+      <p className="relative text-center font-display text-[7.5cqw] font-extrabold leading-[0.85] tracking-[-0.03em] text-[var(--center-fg)]">
         El Gran <br />
         Negocio
       </p>
@@ -60,11 +60,11 @@ export function BoardCenter({
           </>
         ) : null}
       </div>
-      <p className="relative text-[max(1.6cqw,0.8rem)] text-tinta/70">
+      <p className="relative text-[max(1.6cqw,0.8rem)] text-[var(--center-fg)] opacity-75">
         {t('game.round', { round: view.round })}
         {view.rules.freeParkingPot && ` — ${t('game.pot', { amount: i18n.money(view.pot) })}`}
       </p>
-      <p className="relative text-[max(1.3cqw,0.7rem)] text-tinta/60">
+      <p className="relative text-[max(1.3cqw,0.7rem)] text-[var(--center-fg)] opacity-65">
         {t('game.bankStock', { houses: view.bank.houses, hotels: view.bank.hotels })}
       </p>
     </>

@@ -50,7 +50,7 @@ export function Room() {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4">
       <h1 className="font-display text-3xl font-extrabold">{t('room.joinTitle', { code })}</h1>
       <form
-        className="flex flex-col gap-3 rounded-2xl bg-white p-5"
+        className="flex flex-col gap-3 rounded-2xl bg-superficie p-5"
         onSubmit={(event) => {
           event.preventDefault();
           saveName(name.trim());

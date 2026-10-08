@@ -1,11 +1,13 @@
 import { useSoundSettings } from '../audio/settings.js';
 import { syncMusic } from '../audio/synth.js';
 import { t } from '../i18n.js';
+import { BOARD_THEMES, MODES, useLook } from '../look.js';
 import { Dialog } from './ui.js';
 
-/** Ajustes (SPEC.md §7.1, §7.6): sonido y, desde el commit de temas, el tablero y los colores. */
+/** Ajustes (SPEC.md §7.1, §7.6): sonido, tema del tablero y colores de la app. */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const sound = useSoundSettings();
+  const look = useLook();
   return (
     <Dialog title={t('settings.open')} onClose={onClose}>
       <fieldset className="flex flex-col gap-3">
@@ -61,6 +63,40 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             }}
           />
         </label>
+      </fieldset>
+
+      <fieldset className="mt-5 flex flex-col gap-2">
+        <legend className="mb-2 font-display text-lg font-extrabold">{t('settings.theme')}</legend>
+        {BOARD_THEMES.map((theme) => (
+          <label key={theme} className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="board-theme"
+              checked={look.boardTheme === theme}
+              onChange={() => {
+                look.update({ boardTheme: theme });
+              }}
+            />
+            {t(`theme.${theme}`)}
+          </label>
+        ))}
+      </fieldset>
+
+      <fieldset className="mt-5 flex flex-col gap-2">
+        <legend className="mb-2 font-display text-lg font-extrabold">{t('settings.mode')}</legend>
+        {MODES.map((mode) => (
+          <label key={mode} className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="app-mode"
+              checked={look.mode === mode}
+              onChange={() => {
+                look.update({ mode });
+              }}
+            />
+            {t(`settings.mode.${mode}`)}
+          </label>
+        ))}
       </fieldset>
     </Dialog>
   );

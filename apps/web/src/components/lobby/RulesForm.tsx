@@ -75,7 +75,7 @@ export function RulesForm({
                     const chosen = values[Number(event.target.value)];
                     if (chosen !== undefined) onChange({ [key]: chosen[0] });
                   }}
-                  className="rounded-lg border-2 border-tinta/30 bg-white px-2 py-1"
+                  className="rounded-lg border-2 border-tinta/30 bg-superficie px-2 py-1"
                 >
                   {values.map(([, text], index) => (
                     <option key={text} value={index}>

@@ -80,7 +80,7 @@ export function AuctionDialog({
             return (
               <li
                 key={player.id}
-                className={`flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-sm ${inside ? '' : 'opacity-50'}`}
+                className={`flex items-center gap-1.5 rounded-full bg-superficie px-2 py-1 text-sm ${inside ? '' : 'opacity-50'}`}
               >
                 <TokenBadge color={tokenColor(player.tokenId)} label={player.name} size="1.2rem" />
                 {player.name}
@@ -115,7 +115,7 @@ export function AuctionDialog({
               onChange={(event) => {
                 setAmount(Number(event.target.value));
               }}
-              className="rounded-xl border-2 border-tinta/30 bg-white px-3 py-2 text-2xl font-normal tabular-nums"
+              className="rounded-xl border-2 border-tinta/30 bg-superficie px-3 py-2 text-2xl font-normal tabular-nums"
             />
           </label>
           <div className="flex gap-2">

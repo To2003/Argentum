@@ -131,7 +131,7 @@ export function ActionPanel({
   return (
     <section
       aria-label={t('game.round', { round: view.round })}
-      className="rounded-xl bg-white p-4"
+      className="rounded-xl bg-superficie p-4"
     >
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <p
