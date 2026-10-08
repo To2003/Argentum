@@ -1,7 +1,8 @@
-import type { Action, PlayerView } from '@gran-negocio/engine';
+import { actorOf, PHASE_ACTIONS, type Action, type PlayerView } from '@gran-negocio/engine';
 import type { TimerState } from '@gran-negocio/server/protocol';
 import { BOARD, isOwnable, tileAt } from '@gran-negocio/shared';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useSecondsLeft } from '../../game/useSecondsLeft.js';
 import { i18n, t } from '../../i18n.js';
 import { Button, Dialog } from '../ui.js';
 
@@ -14,40 +15,26 @@ const PANEL_ACTIONS = new Set<Action['type']>([
   'declineProperty',
   'payDebt',
   'endTurn',
-  'passAuction',
-  'acceptTrade',
-  'rejectTrade',
-  'cancelTrade',
   'declareBankruptcy',
 ]);
 
-/** Segundos que faltan para un deadline, actualizado cada medio segundo. */
-function useSecondsLeft(deadline: number | null): number | null {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (deadline === null) return undefined;
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 500);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [deadline]);
-  return deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
-}
+export type PanelDialog = 'auction' | 'trade' | 'manage';
 
 /**
  * El panel contextual (SPEC.md §7.4.3): qué está pasando y solo lo que el
- * jugador puede hacer ahora.
+ * jugador puede hacer ahora. Subasta, trueque y propiedades se abren en sus
+ * diálogos.
  */
 export function ActionPanel({
   view,
   timers,
   onAct,
+  onOpen,
 }: {
   view: PlayerView;
   timers: readonly TimerState[];
   onAct: (action: Action) => void;
+  onOpen: (dialog: PanelDialog) => void;
 }) {
   const me = view.viewerId;
   const name = (id: string) => view.players.find((p) => p.id === id)?.name ?? id;
@@ -56,11 +43,6 @@ export function ActionPanel({
     return tile === undefined ? '' : i18n.tileName(tile, view.rules.useRealBrands);
   };
   const [confirmBankruptcy, setConfirmBankruptcy] = useState(false);
-  // La puja mínima viene en las acciones legales (legalActions devuelve la mínima).
-  const minBidAction = view.legal.find((action) => action.type === 'bid');
-  const minBid = minBidAction?.type === 'bid' ? minBidAction.amount : null;
-  const [bid, setBid] = useState<number | null>(null);
-  const myCash = view.players.find((p) => p.id === me)?.cash ?? 0;
 
   const myTimer = timers.find((timer) => me !== null && timer.playerIds.includes(me));
   const anyTimer = myTimer ?? timers.find((timer) => timer.kind !== 'game');
@@ -135,7 +117,16 @@ export function ActionPanel({
   };
 
   const actions = view.legal.filter((action) => PANEL_ACTIONS.has(action.type));
-  const bidValue = bid ?? minBid ?? 0;
+  // Proponer no está en `legal` (es combinatorio): se puede si la fase lo
+  // permite, actúa el viewer y no hay otro trueque abierto. El contenido lo
+  // valida el editor, con las reglas del engine.
+  const canPropose =
+    me !== null &&
+    view.trade === null &&
+    PHASE_ACTIONS[phase.kind].includes('proposeTrade') &&
+    actorOf(view) === me;
+  const ownsSomething =
+    me !== null && Object.values(view.properties).some((property) => property.ownerId === me);
 
   return (
     <section
@@ -144,7 +135,7 @@ export function ActionPanel({
     >
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <p
-          className="font-display text-lg font-extrabold leading-snug"
+          className="font-display text-lg leading-snug font-extrabold"
           aria-live="polite"
           data-testid="prompt"
         >
@@ -160,8 +151,8 @@ export function ActionPanel({
       </div>
 
       {phase.kind === 'auction' && (
-        <div className="mb-3 rounded-lg bg-celeste-claro p-3">
-          <p className="mb-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-celeste-claro p-3">
+          <p>
             {phase.highBidder === null
               ? t('prompt.auctionNoBids')
               : t('prompt.auctionHigh', {
@@ -169,50 +160,31 @@ export function ActionPanel({
                   amount: i18n.money(phase.highBid),
                 })}
           </p>
-          {minBid !== null ? (
-            <form
-              className="flex flex-wrap items-end gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                onAct({ type: 'bid', amount: bidValue });
-                setBid(null);
-              }}
-            >
-              <label className="flex flex-col text-sm">
-                {t('auction.amount')}
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={minBid}
-                  max={myCash}
-                  step={1}
-                  value={bidValue}
-                  onChange={(event) => {
-                    setBid(Number(event.target.value));
-                  }}
-                  className="w-32 rounded-lg border-2 border-tinta/30 bg-white px-2 py-1.5 text-lg tabular-nums"
-                />
-              </label>
-              <Button type="submit" disabled={bidValue < minBid || bidValue > myCash}>
-                {t('action.bid', { amount: i18n.money(bidValue) })}
-              </Button>
-              <span className="text-sm text-tinta/70">
-                {t('auction.minimum', { amount: i18n.money(minBid) })}
-              </span>
-            </form>
-          ) : (
-            me !== null &&
-            !phase.participants.includes(me) && (
-              <p className="text-sm text-tinta/70">{t('prompt.auctionOut')}</p>
-            )
-          )}
+          <Button
+            variant="secondary"
+            data-testid="view-auction"
+            onClick={() => {
+              onOpen('auction');
+            }}
+          >
+            {t('auction.view')}
+          </Button>
         </div>
       )}
 
       {view.trade !== null && (
-        <p className="mb-3 rounded-lg bg-celeste-claro p-3">
-          {t('prompt.trade', { from: name(view.trade.from), to: name(view.trade.to) })}
-        </p>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-celeste-claro p-3">
+          <p>{t('prompt.trade', { from: name(view.trade.from), to: name(view.trade.to) })}</p>
+          <Button
+            variant="secondary"
+            data-testid="view-trade"
+            onClick={() => {
+              onOpen('trade');
+            }}
+          >
+            {t('trade.view')}
+          </Button>
+        </div>
       )}
 
       {actions.length > 0 && (
@@ -224,10 +196,7 @@ export function ActionPanel({
               variant={
                 action.type === 'declareBankruptcy'
                   ? 'danger'
-                  : action.type === 'declineProperty' ||
-                      action.type === 'passAuction' ||
-                      action.type === 'rejectTrade' ||
-                      action.type === 'cancelTrade'
+                  : action.type === 'declineProperty'
                     ? 'secondary'
                     : 'primary'
               }
@@ -239,6 +208,33 @@ export function ActionPanel({
               {label(action)}
             </Button>
           ))}
+        </div>
+      )}
+
+      {(canPropose || ownsSomething) && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {ownsSomething && (
+            <Button
+              variant="secondary"
+              data-testid="open-manage"
+              onClick={() => {
+                onOpen('manage');
+              }}
+            >
+              {t('manage.open')}
+            </Button>
+          )}
+          {canPropose && (
+            <Button
+              variant="secondary"
+              data-testid="open-trade"
+              onClick={() => {
+                onOpen('trade');
+              }}
+            >
+              {t('trade.open')}
+            </Button>
+          )}
         </div>
       )}
       {phase.kind !== 'gameOver' && me !== null && (
