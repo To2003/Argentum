@@ -16,7 +16,8 @@ Thumbs.db
 *.db
 *.db-shm
 *.db-wal
-data/
+# Base SQLite del server (M4).
+apps/server/data/
 test-results/
 playwright-report/
 .tsbuild/
