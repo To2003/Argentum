@@ -1,6 +1,7 @@
 import { tileAt, isOwnable } from '@gran-negocio/shared';
 import type { Ctx } from '../context.js';
 import type { PlayerId, TileIndex } from '../types.js';
+import { openPropertyAuction } from './auction.js';
 import { transfer } from './money.js';
 
 export function priceOf(tileIndex: TileIndex): number {
@@ -15,18 +16,19 @@ export function buyProperty(ctx: Ctx, playerId: PlayerId, tile: TileIndex): void
   ctx.events.push({ type: 'propertyBought', playerId, tile });
 }
 
-export function declineProperty(ctx: Ctx, playerId: PlayerId, tile: TileIndex): void {
+/** Devuelve si abrió una subasta (si no, la propiedad queda en el banco). */
+export function declineProperty(ctx: Ctx, playerId: PlayerId, tile: TileIndex): boolean {
   ctx.events.push({ type: 'purchaseDeclined', playerId, tile });
-  onPurchaseDeclined(ctx, tile);
+  return onPurchaseDeclined(ctx, tile);
 }
 
 /**
- * Punto de extensión de la subasta (SPEC.md §15.4).
- *
- * TODO(M3): con `rules.auctionOnDecline`, abrir la fase `auction` con
- * `returnTo: finishResolution` en vez de dejar la propiedad sin dueño. Hoy
- * (M2) la propiedad sigue siendo del banco y el turno sigue.
+ * Punto de extensión de la subasta (SPEC.md §15.4): con `auctionOnDecline`, la
+ * propiedad rechazada se subasta entre todos los jugadores activos, incluido
+ * el que la rechazó, y al cerrar se termina la resolución de la casilla.
  */
-function onPurchaseDeclined(_ctx: Ctx, _tile: TileIndex): void {
-  // Sin subasta todavía: no hay nada que hacer.
+function onPurchaseDeclined(ctx: Ctx, tile: TileIndex): boolean {
+  if (!ctx.s.rules.auctionOnDecline) return false;
+  openPropertyAuction(ctx, tile, [], { kind: 'finishResolution' });
+  return true;
 }
