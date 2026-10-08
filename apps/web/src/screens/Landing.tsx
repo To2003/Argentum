@@ -1,5 +1,5 @@
 import { Panel } from '@gran-negocio/ui';
-import { t } from '../i18n/es-AR.js';
+import { t } from '../i18n.js';
 
 export function Landing() {
   return (

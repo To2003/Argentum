@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { t } from '../i18n/es-AR.js';
+import { t } from '../i18n.js';
 
 export function NotFound() {
   return (
