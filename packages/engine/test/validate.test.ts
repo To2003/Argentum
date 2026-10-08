@@ -19,7 +19,7 @@ describe('validateAction', () => {
 
   it('partida terminada', () => {
     const state = newGame();
-    state.phase = { kind: 'gameOver', winnerId: 'p1' };
+    state.phase = { kind: 'gameOver', winnerId: 'p1', reason: 'lastStanding' };
     expect(validateAction(state, 'p1', { type: 'rollDice' })).toBe('GAME_OVER');
     expect(actorOf(state)).toBeNull();
   });

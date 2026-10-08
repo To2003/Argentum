@@ -60,7 +60,8 @@ describe('dobles', () => {
 
   it('tres dobles seguidos: preso sin mover, y cierra con endTurn', () => {
     // Desde la Cárcel (de visita): 12 Edenor, 16 Monumento, ambas sin dueño.
-    let state = place(newGame(), 'p1', 10);
+    // Sin subasta: el test es sobre los dobles, no sobre qué pasa al rechazar.
+    let state = place(newGame(2, { auctionOnDecline: false }), 'p1', 10);
     state = act(roll(state, 'p1', [1, 1]).state, 'p1', { type: 'declineProperty' }).state;
     expect(phaseKind(state)).toBe('waitingRoll');
     state = act(roll(state, 'p1', [2, 2]).state, 'p1', { type: 'declineProperty' }).state;
@@ -101,8 +102,8 @@ describe('compra', () => {
     expectRejected(landed.state, 'p1', { type: 'buyProperty' }, 'INSUFFICIENT_FUNDS');
   });
 
-  it('rechazar deja la propiedad sin dueño y el turno sigue (TODO(M3): subasta)', () => {
-    const landed = roll(newGame(), 'p1', [1, 2]);
+  it('sin auctionOnDecline, rechazar deja la propiedad sin dueño y el turno sigue', () => {
+    const landed = roll(newGame(2, { auctionOnDecline: false }), 'p1', [1, 2]);
     const { state, events } = act(landed.state, 'p1', { type: 'declineProperty' });
     expect(state.properties[3]).toBeUndefined();
     expect(eventsOf(events, 'purchaseDeclined')).toHaveLength(1);

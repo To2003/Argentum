@@ -63,3 +63,17 @@ describe('PlayerView', () => {
     );
   });
 });
+
+it('el trueque abierto y la ronda son públicos', () => {
+  const state = newGame(3);
+  state.trade = {
+    id: 1,
+    from: 'p1',
+    to: 'p2',
+    offer: { cash: 10, properties: [], jailFreeCards: [] },
+    request: { cash: 0, properties: [], jailFreeCards: [] },
+  };
+  const view = toPlayerView(state, 'p3');
+  expect(view.trade).toEqual(state.trade);
+  expect(view.round).toBe(1);
+});

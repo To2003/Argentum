@@ -13,14 +13,30 @@ describe('quiebra', () => {
     expect(after.properties[1]).toBeUndefined();
     expect(after.properties[6]).toBeUndefined();
     expect(after.decks.chance.at(-1)).toBe('chance.jailFree');
-    expect(eventsOf(events, 'moneyTransferred').at(-1)).toMatchObject({
-      from: 'p1',
+    expect(eventsOf(events, 'moneyTransferred').find((e) => e.from === 'p1')).toMatchObject({
       to: 'bank',
       amount: 100,
     });
-    // El turno pasa al siguiente.
+    // El turno pasa al siguiente y, ya en su turno, se subastan las propiedades
+    // una por una (SPEC §5.7), sin hipoteca.
     expect(after.currentPlayerId).toBe('p2');
-    expect(phaseKind(after)).toBe('waitingRoll');
+    expect(after.phase).toMatchObject({
+      kind: 'auction',
+      lot: { kind: 'property', tile: 1 },
+      queue: [6],
+      participants: ['p2', 'p3'],
+    });
+    const first = act(act(after, 'p2', { type: 'passAuction' }).state, 'p3', {
+      type: 'passAuction',
+    }).state;
+    expect(first.phase).toMatchObject({ kind: 'auction', lot: { kind: 'property', tile: 6 } });
+    const second = act(act(first, 'p2', { type: 'bid', amount: 10 }).state, 'p3', {
+      type: 'passAuction',
+    }).state;
+    expect(second.properties[6]).toEqual({ ownerId: 'p2', houses: 0, mortgaged: false });
+    expect(second.properties[1]).toBeUndefined();
+    expect(phaseKind(second)).toBe('waitingRoll');
+    expect(second.currentPlayerId).toBe('p2');
   });
 
   it('ante un jugador: se lleva efectivo, propiedades y cartas', () => {
@@ -53,13 +69,17 @@ describe('quiebra', () => {
   it('cuando queda uno solo, termina la partida', () => {
     const debt = roll(setCash(newGame(2), 'p1', 10), 'p1', [1, 3]).state;
     const { state, events } = act(debt, 'p1', { type: 'declareBankruptcy' });
-    expect(state.phase).toEqual({ kind: 'gameOver', winnerId: 'p2' });
+    expect(state.phase).toEqual({ kind: 'gameOver', winnerId: 'p2', reason: 'lastStanding' });
     expect(eventsOf(events, 'gameOver')[0]?.winnerId).toBe('p2');
     expect(act.bind(null, state, 'p2', { type: 'rollDice' })).toThrow(/GAME_OVER/);
   });
 
   it('el quebrado no vuelve a jugar', () => {
-    const debt = roll(setCash(newGame(3), 'p2', 10), 'p1', [1, 3]).state;
+    const debt = roll(
+      setCash(newGame(3, { auctionOnDecline: false }), 'p2', 10),
+      'p1',
+      [1, 3],
+    ).state;
     // p1 pagó Ganancias; ahora le toca a p2, que va a quebrar.
     const p2Turn = act(debt, 'p1', { type: 'endTurn' }).state;
     const p2Debt = roll(p2Turn, 'p2', [1, 3]).state;

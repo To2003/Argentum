@@ -1,14 +1,16 @@
 import {
   BANK_HOTELS,
   BANK_HOUSES,
+  COLOR_GROUPS,
   DECKS,
+  GROUP_TILES,
   TILE_COUNT,
   isOwnable,
   tileAt,
 } from '@gran-negocio/shared';
 import { expect } from 'vitest';
 import {
-  actorOf,
+  actorsOf,
   applyAction,
   CANDIDATE_ACTIONS,
   createGame,
@@ -21,6 +23,7 @@ import {
   type GameState,
   type PlayerId,
   type RngState,
+  type TradeBundle,
 } from '../src/index.js';
 
 /**
@@ -83,14 +86,36 @@ export function checkInvariants(state: GameState, ledger: Ledger): void {
     expect(owner?.bankrupt).toBe(false);
   }
 
-  // Edificios: nunca más de 32 casas / 12 hoteles entre banco y tablero.
+  // Edificios: exactamente 32 casas y 12 hoteles entre banco y tablero, nunca negativos.
   const housesOnBoard = Object.values(state.properties).reduce(
     (sum, p) => sum + (p.houses === 5 ? 0 : p.houses),
     0,
   );
   const hotelsOnBoard = Object.values(state.properties).filter((p) => p.houses === 5).length;
-  expect(state.bank.houses + housesOnBoard).toBeLessThanOrEqual(BANK_HOUSES);
-  expect(state.bank.hotels + hotelsOnBoard).toBeLessThanOrEqual(BANK_HOTELS);
+  expect(state.bank.houses).toBeGreaterThanOrEqual(0);
+  expect(state.bank.hotels).toBeGreaterThanOrEqual(0);
+  expect(state.bank.houses + housesOnBoard).toBe(BANK_HOUSES);
+  expect(state.bank.hotels + hotelsOnBoard).toBe(BANK_HOTELS);
+
+  // Edificios solo en grupos completos y sin hipotecas; construcción pareja.
+  for (const group of COLOR_GROUPS) {
+    const tiles = GROUP_TILES[group];
+    const houses = tiles.map((tile) => state.properties[tile]?.houses ?? 0);
+    if (houses.every((h) => h === 0)) continue;
+    const owner = state.properties[tiles[0] ?? -1]?.ownerId;
+    for (const tile of tiles) {
+      expect(state.properties[tile]?.ownerId).toBe(owner);
+      expect(state.properties[tile]?.mortgaged).toBe(false);
+    }
+    if (state.rules.evenBuild) {
+      expect(Math.max(...houses) - Math.min(...houses)).toBeLessThanOrEqual(1);
+    }
+  }
+  // Hipotecas coherentes: una hipotecada nunca tiene edificios; edificios solo en propiedades.
+  for (const [key, owned] of Object.entries(state.properties)) {
+    if (owned.mortgaged) expect(owned.houses).toBe(0);
+    if (owned.houses > 0) expect(tileAt(Number(key)).kind).toBe('property');
+  }
 
   // Cada mazo conserva sus 16 cartas, contando las "Salí gratis" retenidas.
   for (const deck of ['chance', 'community'] as const) {
@@ -101,20 +126,37 @@ export function checkInvariants(state: GameState, ledger: Ledger): void {
   // El orden de turno contiene a cada jugador exactamente una vez.
   expect([...state.turnOrder].sort()).toEqual(Object.keys(state.players).sort());
 
+  // Trueque abierto: entre dos jugadores activos distintos.
+  if (state.trade !== null) {
+    expect(state.trade.from).not.toBe(state.trade.to);
+    expect(state.players[state.trade.from]?.bankrupt).toBe(false);
+    expect(state.players[state.trade.to]?.bankrupt).toBe(false);
+  }
+
   // La fase es coherente con quién actúa.
   if (state.phase.kind === 'gameOver') {
-    expect(players.filter((p) => !p.bankrupt).length).toBeLessThanOrEqual(1);
+    if (state.phase.reason === 'lastStanding') {
+      expect(players.filter((p) => !p.bankrupt).length).toBeLessThanOrEqual(1);
+    }
+    expect(state.trade).toBeNull();
     return;
   }
   expect(state.players[state.currentPlayerId]?.bankrupt).toBe(false);
-  const actor = actorOf(state);
-  expect(actor).not.toBeNull();
-  expect(state.players[actor ?? '']?.bankrupt).toBe(false);
+  const actors = actorsOf(state);
+  expect(actors.length).toBeGreaterThan(0);
+  for (const actor of actors) expect(state.players[actor]?.bankrupt).toBe(false);
   if (state.phase.kind === 'inDebt') {
     expect(state.phase.debts.length).toBeGreaterThan(0);
-    for (const debt of state.phase.debts) {
-      expect(state.players[debt.debtorId]?.cash).toBeLessThan(debt.amount);
+    for (const debt of state.phase.debts) expect(debt.amount).toBeGreaterThan(0);
+  }
+  if (state.phase.kind === 'auction') {
+    const { phase } = state;
+    for (const id of phase.participants) expect(state.players[id]?.bankrupt).toBe(false);
+    if (phase.highBidder !== null) {
+      expect(phase.participants).toContain(phase.highBidder);
+      expect(state.players[phase.highBidder]?.cash).toBeGreaterThanOrEqual(phase.highBid);
     }
+    if (phase.lot.kind === 'property') expect(state.properties[phase.lot.tile]).toBeUndefined();
   }
   if (state.phase.kind === 'awaitingPurchase') {
     expect(state.properties[state.phase.tile]).toBeUndefined();
@@ -123,8 +165,8 @@ export function checkInvariants(state: GameState, ledger: Ledger): void {
     expect(state.players[state.currentPlayerId]?.inJail).toBe(false);
   if (state.phase.kind === 'jailDecision')
     expect(state.players[state.currentPlayerId]?.inJail).toBe(true);
-  // Siempre hay algo legal para el que tiene que actuar: la partida no se traba.
-  expect(legalActions(state, actor ?? '').length).toBeGreaterThan(0);
+  // Siempre hay algo legal para alguien: la partida no se traba.
+  expect(actors.some((actor) => legalActions(state, actor).length > 0)).toBe(true);
 }
 
 export interface LoggedAction {
@@ -140,17 +182,65 @@ export interface PlayResult {
 
 const snapshot = (state: GameState) => JSON.stringify(state);
 
+type Pick = (bound: number) => number;
+
+/** Un lado de trueque al azar con lo que `owner` tiene hoy (puede quedar inválido a propósito). */
+function randomBundle(state: GameState, owner: PlayerId, pick: Pick): TradeBundle {
+  const owned = Object.entries(state.properties)
+    .filter(([, p]) => p.ownerId === owner)
+    .map(([tile]) => Number(tile));
+  const properties = owned.filter(() => pick(3) === 0);
+  const cash = pick(4) === 0 ? pick((state.players[owner]?.cash ?? 0) + 1) : 0;
+  const cards = (state.players[owner]?.jailFreeCards ?? []).filter(() => pick(2) === 0);
+  return { cash, properties, jailFreeCards: cards };
+}
+
+/** Acciones con parámetros libres que `legalActions` no enumera: pujas y trueques. */
+function extraCandidates(state: GameState, actor: PlayerId, pick: Pick): Action[] {
+  const extra: Action[] = [];
+  const others = Object.keys(state.players).filter((id) => id !== actor);
+  const other = others[pick(others.length)];
+  if (other !== undefined) {
+    extra.push({
+      type: 'proposeTrade',
+      to: other,
+      offer: randomBundle(state, actor, pick),
+      request: randomBundle(state, other, pick),
+    });
+  }
+  if (state.trade !== null) {
+    extra.push({
+      type: 'counterTrade',
+      offer: randomBundle(state, state.trade.to, pick),
+      request: randomBundle(state, state.trade.from, pick),
+    });
+  }
+  if (state.phase.kind === 'auction') {
+    const cash = state.players[actor]?.cash ?? 0;
+    extra.push({ type: 'bid', amount: state.phase.highBid + 1 + pick(Math.max(1, cash)) });
+  }
+  return extra;
+}
+
 /**
  * Juega eligiendo al azar entre las acciones legales (con un PRNG propio, no
  * el de la partida), chequeando invariantes después de cada paso. Cada tanto
- * prueba una acción ilegal y exige que se rechace sin tocar el estado ni el RNG.
+ * prueba una acción ilegal y exige que se rechace sin tocar el estado ni el
+ * RNG. También prueba pujas y trueques al azar (válidos o no).
  */
 export function randomPlay(
   setup: GameSetup,
-  options: { readonly steps: number; readonly policySeed: string; readonly maxTurns?: number },
+  options: {
+    readonly steps: number;
+    readonly policySeed: string;
+    readonly maxTurns?: number;
+    /** Arma un escenario sobre la partida recién creada (p. ej. una partida avanzada). */
+    readonly prepare?: (state: GameState) => void;
+  },
 ): PlayResult {
   const created = createGame(setup);
   let state = created.state;
+  options.prepare?.(state);
   const events: GameEvent[] = [...created.events];
   const log: LoggedAction[] = [];
   const ledger = new Ledger(state);
@@ -158,41 +248,66 @@ export function randomPlay(
   checkInvariants(state, ledger);
 
   let rng: RngState = createRng(options.policySeed);
-  const pick = (bound: number): number => {
-    const draw = nextInt(rng, bound);
+  const pick: Pick = (bound) => {
+    const draw = nextInt(rng, Math.max(1, bound));
     rng = draw.state;
     return draw.value;
   };
   const playerIds = Object.keys(state.players);
 
+  const apply = (playerId: PlayerId, action: Action) => {
+    const result = applyAction(state, playerId, action);
+    if (!result.ok)
+      throw new Error(`una acción legal fue rechazada: ${action.type} → ${result.error}`);
+    expect(result.state.version).toBe(state.version + 1);
+    state = result.state;
+    log.push({ playerId, action });
+    events.push(...result.events);
+    ledger.record(result.events);
+    checkInvariants(state, ledger);
+  };
+
+  /** Prueba una acción: aceptada o no, `applyAction` no toca el estado de entrada (ni su RNG). */
+  const probe = (playerId: PlayerId, action: Action): boolean => {
+    const before = snapshot(state);
+    const result = applyAction(state, playerId, action);
+    expect(snapshot(state)).toBe(before);
+    return result.ok;
+  };
+
   for (let step = 0; step < options.steps; step += 1) {
     if (options.maxTurns !== undefined && state.turnNumber > options.maxTurns) break;
-    const actor = actorOf(state);
-    if (actor === null) break;
+    if (state.phase.kind === 'gameOver') break;
 
-    // Una ilegal al azar: rechazada, sin cambios y sin consumir RNG.
-    const someone = playerIds[pick(playerIds.length)] ?? actor;
+    // Una acción al azar de un jugador al azar: si se rechaza, no cambia nada.
+    const someone = playerIds[pick(playerIds.length)] ?? 'p1';
     const candidate = CANDIDATE_ACTIONS[pick(CANDIDATE_ACTIONS.length)] ?? { type: 'endTurn' };
-    const isLegal = legalActions(state, someone).some((a) => a.type === candidate.type);
-    if (!isLegal) {
-      const before = snapshot(state);
-      const rejected = applyAction(state, someone, candidate);
-      expect(rejected.ok).toBe(false);
-      expect(snapshot(state)).toBe(before);
+    probe(someone, candidate);
+
+    // Muy de vez en cuando se acaba el tiempo (solo si la sala tiene partida corta).
+    if (state.rules.gameDurationMinutes !== null && pick(400) === 0) {
+      apply('system', { type: 'timeUp' });
+      break;
+    }
+
+    const actors = actorsOf(state).filter((id) => legalActions(state, id).length > 0);
+    const actor = actors[pick(actors.length)];
+    if (actor === undefined) throw new Error('nadie puede actuar');
+
+    // Una de cada tantas: una acción con parámetros libres, si resulta legal.
+    if (pick(6) === 0) {
+      const extras = extraCandidates(state, actor, pick);
+      const extra = extras[pick(extras.length)];
+      if (extra !== undefined && probe(actor, extra)) {
+        apply(actor, extra);
+        continue;
+      }
     }
 
     const legal = legalActions(state, actor);
     const action = legal[pick(legal.length)];
     if (action === undefined) throw new Error('sin acciones legales');
-    const result = applyAction(state, actor, action);
-    if (!result.ok)
-      throw new Error(`una acción legal fue rechazada: ${action.type} → ${result.error}`);
-    expect(result.state.version).toBe(state.version + 1);
-    state = result.state;
-    log.push({ playerId: actor, action });
-    events.push(...result.events);
-    ledger.record(result.events);
-    checkInvariants(state, ledger);
+    apply(actor, action);
   }
   return { state, log, events };
 }

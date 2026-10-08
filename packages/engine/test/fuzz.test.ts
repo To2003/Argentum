@@ -1,5 +1,5 @@
 import fc from 'fast-check';
-import { DEFAULT_RULES } from '@gran-negocio/shared';
+import { COLOR_GROUPS, DEFAULT_RULES, GROUP_TILES } from '@gran-negocio/shared';
 import { describe, expect, it } from 'vitest';
 import type { GameSetup } from '../src/index.js';
 import { randomPlay, replay } from './invariants.js';
@@ -33,6 +33,51 @@ describe('fuzz de invariantes', () => {
         randomPlay(setup, { steps: 400, policySeed });
       }),
       { numRuns: 80 },
+    );
+  }, 120_000);
+});
+
+describe('fuzz de partida avanzada (construcción y escasez)', () => {
+  it('con grupos completos y plata, construir y vender mantiene 32/12 y la construcción pareja', () => {
+    fc.assert(
+      fc.property(
+        setupArb,
+        hex32,
+        fc.boolean(),
+        fc.boolean(),
+        (setup, policySeed, evenBuild, scarce) => {
+          const rules = { ...setup.rules, evenBuild } as typeof DEFAULT_RULES;
+          const { events } = randomPlay(
+            { ...setup, rules },
+            {
+              steps: 300,
+              policySeed,
+              prepare: (state) => {
+                const ids = Object.keys(state.players);
+                COLOR_GROUPS.forEach((group, i) => {
+                  const ownerId = ids[i % ids.length] ?? 'p1';
+                  for (const tile of GROUP_TILES[group]) {
+                    state.properties[tile] = { ownerId, houses: 0, mortgaged: false };
+                  }
+                });
+                for (const player of Object.values(state.players)) player.cash = 3000;
+                if (scarce) {
+                  // 30 casas ya construidas, de a una por nivel: siempre parejas.
+                  // Quedan 2 en el banco: la última casa se disputa enseguida.
+                  const tiles = COLOR_GROUPS.flatMap((group) => GROUP_TILES[group]);
+                  for (let placed = 0; placed < 30; placed += 1) {
+                    const property = state.properties[tiles[placed % tiles.length] ?? 1];
+                    if (property !== undefined) property.houses = (property.houses + 1) as 1 | 2;
+                  }
+                  state.bank.houses = 2;
+                }
+              },
+            },
+          );
+          return events.some((e) => e.type === 'buildingBuilt');
+        },
+      ),
+      { numRuns: 40 },
     );
   }, 120_000);
 });

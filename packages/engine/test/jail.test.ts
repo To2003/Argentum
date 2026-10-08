@@ -76,7 +76,13 @@ describe('cárcel', () => {
   });
 
   it('dobles: sale, mueve y no vuelve a tirar', () => {
-    const { state, events } = roll(jailed(), 'p1', [3, 3]); // 16 Monumento
+    const base = jailed();
+    // Sin subasta: el test es sobre la salida de la cárcel, no sobre el rechazo.
+    const { state, events } = roll(
+      { ...base, rules: { ...base.rules, auctionOnDecline: false } },
+      'p1',
+      [3, 3],
+    ); // 16 Monumento
     expect(state.players['p1']).toMatchObject({ inJail: false, position: 16 });
     expect(eventsOf(events, 'leftJail')[0]?.method).toBe('doubles');
     expect(state.phase).toEqual({ kind: 'awaitingPurchase', tile: 16 });
@@ -119,7 +125,7 @@ describe('cárcel', () => {
       returnTo: { kind: 'moveAfterJailFine', dice: [1, 3] },
     });
     const after = act(state, 'p1', { type: 'declareBankruptcy' }).state;
-    expect(after.phase).toEqual({ kind: 'gameOver', winnerId: 'p2' });
+    expect(after.phase).toEqual({ kind: 'gameOver', winnerId: 'p2', reason: 'lastStanding' });
     expect(after.players['p1']?.position).toBe(10);
   });
 
