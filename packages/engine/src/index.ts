@@ -12,5 +12,17 @@ export { MAX_RESOLUTION_DEPTH } from './rules/tiles.js';
 export { mortgageInterest, mortgageLiftCost } from './rules/mortgage.js';
 export { rentFor, ownsWholeGroup, type NearestModifier } from './rules/rent.js';
 export type * from './types.js';
-export { actorOf, isLegalAction, PHASE_ACTIONS, validateAction } from './validate.js';
+export {
+  actorOf,
+  actorsOf,
+  isLegalAction,
+  PHASE_ACTIONS,
+  SYSTEM_ACTOR,
+  TRADE_RESPONSES,
+  validateAction,
+} from './validate.js';
+export { minBidFor } from './rules/auction.js';
+export { netWorth } from './rules/endgame.js';
+export { buildError, mortgageError, sellError, unmortgageError } from './rules/checks.js';
+export { tradeContentError } from './rules/trade.js';
 export { toPlayerView, type PlayerView, type PublicPlayer } from './view.js';

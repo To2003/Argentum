@@ -9,6 +9,7 @@ import type {
   PlayerId,
   ReadonlyGameState,
   TileIndex,
+  TradeState,
 } from './types.js';
 import type { RulesConfig } from '@gran-negocio/shared';
 
@@ -47,6 +48,9 @@ export interface PlayerView {
     readonly lastRoll: Dice | null;
   };
   readonly turnNumber: number;
+  readonly round: number;
+  /** El trueque abierto: es público (SPEC.md §3.1, no hay información oculta en el juego). */
+  readonly trade: TradeState | null;
   readonly properties: Readonly<Record<TileIndex, OwnedProperty>>;
   readonly bank: { readonly houses: number; readonly hotels: number };
   readonly pot: number;
@@ -89,6 +93,8 @@ export function toPlayerView(state: ReadonlyGameState, viewerId: PlayerId | null
         state.turn.lastRoll === null ? null : [state.turn.lastRoll[0], state.turn.lastRoll[1]],
     },
     turnNumber: state.turnNumber,
+    round: state.round,
+    trade: state.trade === null ? null : copy<TradeState>(state.trade),
     properties: copy<Record<TileIndex, OwnedProperty>>(state.properties),
     bank: { houses: state.bank.houses, hotels: state.bank.hotels },
     pot: state.pot,
