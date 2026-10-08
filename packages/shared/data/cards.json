@@ -1,0 +1,264 @@
+{
+  "$comment": "Mazos de Suerte y Barrio (SPEC.md §6). El orden es el del SPEC; se barajan al iniciar la partida con el PRNG.",
+  "chance": [
+    {
+      "id": "chance.advanceToGo",
+      "textKey": "card.chance.advanceToGo",
+      "effect": {
+        "type": "moveTo",
+        "tile": 0
+      }
+    },
+    {
+      "id": "chance.advanceToAltaGracia",
+      "textKey": "card.chance.advanceToAltaGracia",
+      "effect": {
+        "type": "moveTo",
+        "tile": 24
+      }
+    },
+    {
+      "id": "chance.advanceToTigre",
+      "textKey": "card.chance.advanceToTigre",
+      "effect": {
+        "type": "moveTo",
+        "tile": 11
+      }
+    },
+    {
+      "id": "chance.advanceToPuertoMadero",
+      "textKey": "card.chance.advanceToPuertoMadero",
+      "effect": {
+        "type": "moveTo",
+        "tile": 39
+      }
+    },
+    {
+      "id": "chance.nearestUtility",
+      "textKey": "card.chance.nearestUtility",
+      "effect": {
+        "type": "moveToNearest",
+        "target": "utility",
+        "diceMultiplier": 10
+      }
+    },
+    {
+      "id": "chance.nearestSubway1",
+      "textKey": "card.chance.nearestSubway",
+      "effect": {
+        "type": "moveToNearest",
+        "target": "subway",
+        "rentMultiplier": 2
+      }
+    },
+    {
+      "id": "chance.nearestSubway2",
+      "textKey": "card.chance.nearestSubway",
+      "effect": {
+        "type": "moveToNearest",
+        "target": "subway",
+        "rentMultiplier": 2
+      }
+    },
+    {
+      "id": "chance.goBack3",
+      "textKey": "card.chance.goBack3",
+      "effect": {
+        "type": "moveRelative",
+        "steps": -3
+      }
+    },
+    {
+      "id": "chance.goToJail",
+      "textKey": "card.chance.goToJail",
+      "effect": {
+        "type": "goToJail"
+      }
+    },
+    {
+      "id": "chance.aguinaldo",
+      "textKey": "card.chance.aguinaldo",
+      "effect": {
+        "type": "gain",
+        "amount": 50
+      }
+    },
+    {
+      "id": "chance.jailFree",
+      "textKey": "card.chance.jailFree",
+      "effect": {
+        "type": "jailFreeCard"
+      }
+    },
+    {
+      "id": "chance.consorcioRepairs",
+      "textKey": "card.chance.consorcioRepairs",
+      "effect": {
+        "type": "repairs",
+        "perHouse": 25,
+        "perHotel": 100
+      }
+    },
+    {
+      "id": "chance.parkingFine",
+      "textKey": "card.chance.parkingFine",
+      "effect": {
+        "type": "pay",
+        "amount": 15
+      }
+    },
+    {
+      "id": "chance.rideLineA",
+      "textKey": "card.chance.rideLineA",
+      "effect": {
+        "type": "moveTo",
+        "tile": 5
+      }
+    },
+    {
+      "id": "chance.consorcioPresident",
+      "textKey": "card.chance.consorcioPresident",
+      "effect": {
+        "type": "payEach",
+        "amount": 50
+      }
+    },
+    {
+      "id": "chance.plazoFijo",
+      "textKey": "card.chance.plazoFijo",
+      "effect": {
+        "type": "gain",
+        "amount": 150
+      }
+    }
+  ],
+  "community": [
+    {
+      "id": "community.advanceToGo",
+      "textKey": "card.community.advanceToGo",
+      "effect": {
+        "type": "moveTo",
+        "tile": 0
+      }
+    },
+    {
+      "id": "community.bankError",
+      "textKey": "card.community.bankError",
+      "effect": {
+        "type": "gain",
+        "amount": 200
+      }
+    },
+    {
+      "id": "community.prepaga",
+      "textKey": "card.community.prepaga",
+      "effect": {
+        "type": "pay",
+        "amount": 50
+      }
+    },
+    {
+      "id": "community.savedDollars",
+      "textKey": "card.community.savedDollars",
+      "effect": {
+        "type": "gain",
+        "amount": 50
+      }
+    },
+    {
+      "id": "community.jailFree",
+      "textKey": "card.community.jailFree",
+      "effect": {
+        "type": "jailFreeCard"
+      }
+    },
+    {
+      "id": "community.goToJail",
+      "textKey": "card.community.goToJail",
+      "effect": {
+        "type": "goToJail"
+      }
+    },
+    {
+      "id": "community.savingsPlan",
+      "textKey": "card.community.savingsPlan",
+      "effect": {
+        "type": "gain",
+        "amount": 100
+      }
+    },
+    {
+      "id": "community.taxRefund",
+      "textKey": "card.community.taxRefund",
+      "effect": {
+        "type": "gain",
+        "amount": 20
+      }
+    },
+    {
+      "id": "community.birthday",
+      "textKey": "card.community.birthday",
+      "effect": {
+        "type": "gainFromEach",
+        "amount": 10
+      }
+    },
+    {
+      "id": "community.lifeInsurance",
+      "textKey": "card.community.lifeInsurance",
+      "effect": {
+        "type": "gain",
+        "amount": 100
+      }
+    },
+    {
+      "id": "community.hospital",
+      "textKey": "card.community.hospital",
+      "effect": {
+        "type": "pay",
+        "amount": 100
+      }
+    },
+    {
+      "id": "community.schoolFees",
+      "textKey": "card.community.schoolFees",
+      "effect": {
+        "type": "pay",
+        "amount": 50
+      }
+    },
+    {
+      "id": "community.consulting",
+      "textKey": "card.community.consulting",
+      "effect": {
+        "type": "gain",
+        "amount": 25
+      }
+    },
+    {
+      "id": "community.streetRepairs",
+      "textKey": "card.community.streetRepairs",
+      "effect": {
+        "type": "repairs",
+        "perHouse": 40,
+        "perHotel": 115
+      }
+    },
+    {
+      "id": "community.empanadaContest",
+      "textKey": "card.community.empanadaContest",
+      "effect": {
+        "type": "gain",
+        "amount": 10
+      }
+    },
+    {
+      "id": "community.inheritance",
+      "textKey": "card.community.inheritance",
+      "effect": {
+        "type": "gain",
+        "amount": 100
+      }
+    }
+  ]
+}

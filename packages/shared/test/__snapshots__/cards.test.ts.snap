@@ -1,0 +1,267 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`cards.json > coincide con el snapshot 1`] = `
+{
+  "chance": [
+    {
+      "effect": {
+        "tile": 0,
+        "type": "moveTo",
+      },
+      "id": "chance.advanceToGo",
+      "textKey": "card.chance.advanceToGo",
+    },
+    {
+      "effect": {
+        "tile": 24,
+        "type": "moveTo",
+      },
+      "id": "chance.advanceToAltaGracia",
+      "textKey": "card.chance.advanceToAltaGracia",
+    },
+    {
+      "effect": {
+        "tile": 11,
+        "type": "moveTo",
+      },
+      "id": "chance.advanceToTigre",
+      "textKey": "card.chance.advanceToTigre",
+    },
+    {
+      "effect": {
+        "tile": 39,
+        "type": "moveTo",
+      },
+      "id": "chance.advanceToPuertoMadero",
+      "textKey": "card.chance.advanceToPuertoMadero",
+    },
+    {
+      "effect": {
+        "diceMultiplier": 10,
+        "target": "utility",
+        "type": "moveToNearest",
+      },
+      "id": "chance.nearestUtility",
+      "textKey": "card.chance.nearestUtility",
+    },
+    {
+      "effect": {
+        "rentMultiplier": 2,
+        "target": "subway",
+        "type": "moveToNearest",
+      },
+      "id": "chance.nearestSubway1",
+      "textKey": "card.chance.nearestSubway",
+    },
+    {
+      "effect": {
+        "rentMultiplier": 2,
+        "target": "subway",
+        "type": "moveToNearest",
+      },
+      "id": "chance.nearestSubway2",
+      "textKey": "card.chance.nearestSubway",
+    },
+    {
+      "effect": {
+        "steps": -3,
+        "type": "moveRelative",
+      },
+      "id": "chance.goBack3",
+      "textKey": "card.chance.goBack3",
+    },
+    {
+      "effect": {
+        "type": "goToJail",
+      },
+      "id": "chance.goToJail",
+      "textKey": "card.chance.goToJail",
+    },
+    {
+      "effect": {
+        "amount": 50,
+        "type": "gain",
+      },
+      "id": "chance.aguinaldo",
+      "textKey": "card.chance.aguinaldo",
+    },
+    {
+      "effect": {
+        "type": "jailFreeCard",
+      },
+      "id": "chance.jailFree",
+      "textKey": "card.chance.jailFree",
+    },
+    {
+      "effect": {
+        "perHotel": 100,
+        "perHouse": 25,
+        "type": "repairs",
+      },
+      "id": "chance.consorcioRepairs",
+      "textKey": "card.chance.consorcioRepairs",
+    },
+    {
+      "effect": {
+        "amount": 15,
+        "type": "pay",
+      },
+      "id": "chance.parkingFine",
+      "textKey": "card.chance.parkingFine",
+    },
+    {
+      "effect": {
+        "tile": 5,
+        "type": "moveTo",
+      },
+      "id": "chance.rideLineA",
+      "textKey": "card.chance.rideLineA",
+    },
+    {
+      "effect": {
+        "amount": 50,
+        "type": "payEach",
+      },
+      "id": "chance.consorcioPresident",
+      "textKey": "card.chance.consorcioPresident",
+    },
+    {
+      "effect": {
+        "amount": 150,
+        "type": "gain",
+      },
+      "id": "chance.plazoFijo",
+      "textKey": "card.chance.plazoFijo",
+    },
+  ],
+  "community": [
+    {
+      "effect": {
+        "tile": 0,
+        "type": "moveTo",
+      },
+      "id": "community.advanceToGo",
+      "textKey": "card.community.advanceToGo",
+    },
+    {
+      "effect": {
+        "amount": 200,
+        "type": "gain",
+      },
+      "id": "community.bankError",
+      "textKey": "card.community.bankError",
+    },
+    {
+      "effect": {
+        "amount": 50,
+        "type": "pay",
+      },
+      "id": "community.prepaga",
+      "textKey": "card.community.prepaga",
+    },
+    {
+      "effect": {
+        "amount": 50,
+        "type": "gain",
+      },
+      "id": "community.savedDollars",
+      "textKey": "card.community.savedDollars",
+    },
+    {
+      "effect": {
+        "type": "jailFreeCard",
+      },
+      "id": "community.jailFree",
+      "textKey": "card.community.jailFree",
+    },
+    {
+      "effect": {
+        "type": "goToJail",
+      },
+      "id": "community.goToJail",
+      "textKey": "card.community.goToJail",
+    },
+    {
+      "effect": {
+        "amount": 100,
+        "type": "gain",
+      },
+      "id": "community.savingsPlan",
+      "textKey": "card.community.savingsPlan",
+    },
+    {
+      "effect": {
+        "amount": 20,
+        "type": "gain",
+      },
+      "id": "community.taxRefund",
+      "textKey": "card.community.taxRefund",
+    },
+    {
+      "effect": {
+        "amount": 10,
+        "type": "gainFromEach",
+      },
+      "id": "community.birthday",
+      "textKey": "card.community.birthday",
+    },
+    {
+      "effect": {
+        "amount": 100,
+        "type": "gain",
+      },
+      "id": "community.lifeInsurance",
+      "textKey": "card.community.lifeInsurance",
+    },
+    {
+      "effect": {
+        "amount": 100,
+        "type": "pay",
+      },
+      "id": "community.hospital",
+      "textKey": "card.community.hospital",
+    },
+    {
+      "effect": {
+        "amount": 50,
+        "type": "pay",
+      },
+      "id": "community.schoolFees",
+      "textKey": "card.community.schoolFees",
+    },
+    {
+      "effect": {
+        "amount": 25,
+        "type": "gain",
+      },
+      "id": "community.consulting",
+      "textKey": "card.community.consulting",
+    },
+    {
+      "effect": {
+        "perHotel": 115,
+        "perHouse": 40,
+        "type": "repairs",
+      },
+      "id": "community.streetRepairs",
+      "textKey": "card.community.streetRepairs",
+    },
+    {
+      "effect": {
+        "amount": 10,
+        "type": "gain",
+      },
+      "id": "community.empanadaContest",
+      "textKey": "card.community.empanadaContest",
+    },
+    {
+      "effect": {
+        "amount": 100,
+        "type": "gain",
+      },
+      "id": "community.inheritance",
+      "textKey": "card.community.inheritance",
+    },
+  ],
+}
+`;
