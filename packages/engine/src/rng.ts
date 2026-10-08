@@ -1,16 +1,20 @@
 /**
- * PRNG con semilla (mulberry32).
+ * PRNG con semilla: sfc32, con 128 bits de estado (ADR 0006).
  *
  * El engine nunca usa azar ambiente: cada tirada recibe el estado del
- * generador y devuelve el siguiente, que quien llama tiene que guardar (en
- * M2, `GameState.rngState`). Dados y barajado de mazos salen de acá, así que
- * una partida se reproduce entera a partir del seed y las acciones.
+ * generador y devuelve el siguiente, que vive en `GameState.rngState`. Dados
+ * y barajado de mazos salen de acá, así que una partida se reproduce entera a
+ * partir del seed y las acciones.
  *
  * El estado nunca sale del server: la PlayerView lo filtra (SPEC.md §3.1).
+ * No es un generador criptográfico: el secreto es el estado, no el algoritmo.
  */
 
-/** Todo el estado del generador: un entero de 32 bits sin signo. */
-export type RngState = number;
+/** Cuatro enteros de 32 bits sin signo: a, b, c y el contador d. */
+export type RngState = readonly [number, number, number, number];
+
+/** 128 bits en hexadecimal (32 caracteres). El server lo genera con `crypto`. */
+export type Seed = string;
 
 export interface Draw<T> {
   readonly value: T;
@@ -18,19 +22,52 @@ export interface Draw<T> {
 }
 
 const UINT32 = 0x100000000;
+const SEED_PATTERN = /^[0-9a-f]{32}$/;
 
-export const createRng = (seed: number): RngState => seed >>> 0;
+/**
+ * Rondas que se descartan al sembrar. Mezclan las cuatro palabras entre sí,
+ * así un seed con estructura (ceros, contadores) no se nota en las primeras
+ * tiradas. 12 es lo que recomienda el autor de sfc32; 15 deja margen.
+ */
+const WARM_UP_ROUNDS = 15;
 
-/** Un paso de mulberry32: un float en [0, 1). */
-export const nextFloat = (state: RngState): Draw<number> => {
-  const nextState = (state + 0x6d2b79f5) >>> 0;
-  let t = nextState;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return { value: ((t ^ (t >>> 14)) >>> 0) / UINT32, state: nextState };
+export const isSeed = (value: string): value is Seed => SEED_PATTERN.test(value);
+
+/** Un paso de sfc32: un uint32 y el estado siguiente. */
+const step = (state: RngState): Draw<number> => {
+  const [a, b, c, d] = state;
+  const t = (((a + b) | 0) + d) | 0;
+  const nextC = ((c << 21) | (c >>> 11)) + t;
+  return {
+    value: t >>> 0,
+    state: [(b ^ (b >>> 9)) >>> 0, (c + (c << 3)) >>> 0, nextC >>> 0, (d + 1) >>> 0],
+  };
 };
 
-/** Un entero en [0, bound). Un bound no positivo es un bug de quien llama, no una regla del juego. */
+export const createRng = (seed: Seed): RngState => {
+  if (!isSeed(seed))
+    throw new RangeError(`seed must be 32 lowercase hex chars, got ${JSON.stringify(seed)}`);
+  let state: RngState = [
+    Number.parseInt(seed.slice(0, 8), 16),
+    Number.parseInt(seed.slice(8, 16), 16),
+    Number.parseInt(seed.slice(16, 24), 16),
+    Number.parseInt(seed.slice(24, 32), 16),
+  ];
+  for (let i = 0; i < WARM_UP_ROUNDS; i += 1) state = step(state).state;
+  return state;
+};
+
+/** Un float en [0, 1). */
+export const nextFloat = (state: RngState): Draw<number> => {
+  const draw = step(state);
+  return { value: draw.value / UINT32, state: draw.state };
+};
+
+/**
+ * Un entero en [0, bound). Un bound no positivo es un bug de quien llama, no
+ * una regla del juego. El sesgo de escalar un uint32 es de bound / 2^32: con
+ * bounds de 6 o 40 no se puede medir.
+ */
 export const nextInt = (state: RngState, bound: number): Draw<number> => {
   if (!Number.isInteger(bound) || bound <= 0) {
     throw new RangeError(`bound must be a positive integer, got ${bound}`);
@@ -45,8 +82,10 @@ export const rollDie = (state: RngState): Draw<number> => {
   return { value: draw.value + 1, state: draw.state };
 };
 
+export type Dice = readonly [number, number];
+
 /** Dos dados, en el orden en que se tiraron. */
-export const rollDice = (state: RngState): Draw<readonly [number, number]> => {
+export const rollDice = (state: RngState): Draw<Dice> => {
   const first = rollDie(state);
   const second = rollDie(first.state);
   return { value: [first.value, second.value], state: second.state };
