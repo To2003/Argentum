@@ -1,10 +1,25 @@
 import type { GameEvent, PlayerView } from '@gran-negocio/engine';
 import { tokenColor } from '@gran-negocio/shared';
+import { useEffect } from 'react';
 import { i18n, t } from '../../i18n.js';
 import { TokenBadge } from '../ui.js';
 
 /** Fin de partida: quién ganó, por qué y el patrimonio de cada uno (SPEC.md §5.8). */
 export function GameOver({ view, events }: { view: PlayerView; events: readonly GameEvent[] }) {
+  const over = view.phase.kind === 'gameOver';
+  useEffect(() => {
+    if (!over) return;
+    // Confeti (cargado solo al final); la librería misma respeta prefers-reduced-motion.
+    void import('canvas-confetti').then(({ default: confetti }) =>
+      confetti({
+        particleCount: 160,
+        spread: 75,
+        origin: { y: 0.6 },
+        colors: ['#74acdf', '#f2b705', '#ffffff', '#c0392b'],
+        disableForReducedMotion: true,
+      }),
+    );
+  }, [over]);
   if (view.phase.kind !== 'gameOver') return null;
   const { winnerId, reason } = view.phase;
   const winner = view.players.find((p) => p.id === winnerId);
