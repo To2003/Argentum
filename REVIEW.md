@@ -228,6 +228,12 @@ paga quien la recibe (lo detectó el e2e).
 | ----------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
 | `e2e/game.spec.ts` (M5) | En una subasta, el jugador automático aprieta "Paso" dentro del diálogo | M7 movió la subasta del panel a un diálogo propio. |
 
+### Proceso (M7)
+
+- El tag `m7-done` se creó una primera vez antes de tiempo (el commit de los e2e había fallado
+  en el hook de lint). Era local y nunca se publicó: se borró, se corrigió el lint y se volvió a
+  crear después de verificar sobre un clon limpio.
+
 ### Deuda técnica (M7)
 
 - El historial de trueques es el registro de eventos (no hay una lista aparte).
