@@ -45,7 +45,7 @@ Un juego de tablero económico **online multijugador** (2–6 jugadores, cada un
 - **Audio**: Howler.js (efectos + música ambiente con on/off y volumen separados).
 - **Persistencia**: hasta M9, salas en memoria + snapshot `seed + acciones[]` en **SQLite** (`node:sqlite`, como en Tierra Austral). **Auth/perfiles**: Supabase (Google + invitado) recién en M10, solo para cuentas, perfiles y estadísticas.
 - **Validación**: `zod` en cada mensaje entrante del servidor.
-- **i18n**: librería compatible con Vite/React (se elige en M1). Idioma por defecto **es-AR** (voseo). Dejar la infraestructura lista para `en`.
+- **i18n**: diccionario propio tipado en `packages/shared` (ADR 0005): claves y parámetros chequeados al compilar, plurales con `Intl.PluralRules`, plata con `Intl.NumberFormat`. Idioma por defecto **es-AR** (voseo). Idioma por defecto **es-AR** (voseo). Dejar la infraestructura lista para `en`.
 - **Testing**: Vitest (unit del engine), **fast-check** (property-based testing para invariantes), Playwright (e2e con 2–4 clientes simulados), Storybook para componentes de UI.
 - **Calidad**: ESLint, Prettier, `tsc --build` estricto (`strict: true`, project references), Husky + lint-staged, GitHub Actions (typecheck + lint + test + build, más e2e).
 - **Deploy sugerido**: web en Vercel; servidor de juego (WebSockets persistentes) en Railway/Fly.io/Render. Docker para el servidor.
@@ -468,6 +468,17 @@ Registro de decisiones tomadas durante el desarrollo. Ante conflicto con el rest
 - **Pureza del engine**: ESLint prohíbe en `packages/engine/src` y `packages/shared/src`: `Math.random`, `Date`, `performance`, `crypto`, `process`, `fetch`, `console`, timers e imports `node:*`/`fs`/`path`/`crypto`.
 - **Fuzz de invariantes**: desde que existan compra y alquiler (M2), test de fuzz con fast-check: dinero conservado, ≤ 32 casas / ≤ 12 hoteles, una propiedad = un dueño.
 
-### 15.2 Reglas de juego
+### 15.2 Datos e i18n (M1)
+- **i18n propio** (ADR 0005). Plata del juego: `$ 1.500` en es-AR y `$1,500` en inglés, sin decimales. En inglés los nombres de lugares quedan en castellano (son nombres propios).
+- **`useRealBrands = false` genericiza solo las empresas**: Edenor → "Compañía de Luz", AySA → "Compañía de Agua". Lugares y líneas de subte se quedan (son geografía pública). En board.json las casillas de marca llevan `brand: true` y su nombre genérico vive en `${nameKey}.generic`.
+- **`useRealBrands` es una regla por sala** (`RulesConfig.useRealBrands`). Su valor por defecto lo pone el server desde la variable de entorno `USE_REAL_BRANDS` (M4); `packages/shared` no lee el entorno.
+- **`RulesConfig`, campos agregados a §5.9**: `auctionBidSeconds` (10, el "tiempo límite por puja" de §5.2) y `maxRounds` (`null` = sin límite; la partida corta por rondas de §5.8). `gameDurationMinutes` admite `30 | 60 | 90 | null`. `turnTimerSeconds = 0` desactiva el timer. Rangos válidos en `schemas/rules.ts`.
+- **Cartas**: el texto de las que mencionan la Salida usa `{salary}` de la sala, para no mentir si el host cambia el cobro. "Servicio más cercano": si tiene dueño se **vuelve a tirar** y se paga 10× (§5.2). "Subte más cercano": 2× el alquiler que corresponde según cuántas líneas tenga el dueño; hay 2 copias con ids distintos y el mismo texto.
+- **Validación de datos**: board.json y cards.json se validan con zod en los tests y en el arranque del server (`validateGameData`), **no** al cargar el módulo: eso metía zod en el bundle del cliente (+30 kB gzip).
+
+### 15.3 Reglas de juego
 _(Se completa a medida que se resuelvan ambigüedades.)_
+
+**Pendientes de decidir (se preguntan al llegar al hito):**
+- Redondeo del 10 % de interés de hipoteca cuando no da entero (ej.: AySA, hipoteca $75 → $7,50). (M3)
 

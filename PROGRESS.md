@@ -8,7 +8,7 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | Hito | Contenido                                               | Estado        |
 | ---- | ------------------------------------------------------- | ------------- |
 | M0   | Fundaciones: monorepo, TS strict, lint, tests, CI, docs | ✅ Completado |
-| M1   | Datos: tablero, cartas, RulesConfig, zod, i18n          | ⬜ Pendiente  |
+| M1   | Datos: tablero, cartas, RulesConfig, zod, i18n          | ✅ Completado |
 | M2   | Engine núcleo                                           | ⬜ Pendiente  |
 | M3   | Engine avanzado                                         | ⬜ Pendiente  |
 | M4   | Server de juego                                         | ⬜ Pendiente  |
@@ -18,6 +18,88 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M8   | Bots y simulador de balance                             | ⬜ Pendiente  |
 | M9   | Pulido                                                  | ⬜ Pendiente  |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M1 — Datos ✅
+
+**Qué quedó hecho** (todo en `packages/shared`)
+
+- `data/board.json`: las 40 casillas con los valores clásicos (§4.2–4.3). Cada una tiene `id`
+  estable en camelCase, `nameKey` de i18n y, las de marca (Edenor, AySA), `brand: true`.
+- `data/cards.json`: Suerte y Barrio, 16 cartas cada uno, con `id`, `textKey` y `effect`
+  tipado (`moveTo`, `moveToNearest` utility/subway, `moveRelative`, `gain`, `pay`,
+  `gainFromEach`, `payEach`, `repairs`, `goToJail`, `jailFreeCard`).
+- `src/schemas/{board,cards,rules}.ts`: esquemas zod estrictos (rechazan campos desconocidos).
+  Uniones discriminadas por `kind` y por `effect.type` (con `target` anidado para
+  `moveToNearest`). Chequean orden de índices, ids únicos y mazos de 16.
+- `src/board.ts` / `src/cards.ts`: `BOARD`, `DECKS`, tipos inferidos (`Tile`, `PropertyTile`,
+  `OwnableTile`, `Card`, `CardEffect`…) y helpers (`tileAt`, `GROUP_TILES`, `SUBWAY_TILES`,
+  `UTILITY_TILES`, `isOwnable`, `cardById`).
+- `src/rules.ts`: `DEFAULT_RULES` (congelado) y `resolveRules(overrides, base)`, que valida
+  el resultado entero.
+- `src/validate.ts`: `validateGameData()` para el arranque del server (M4).
+- `src/constants.ts`: índices fijos (Salida, Cárcel, Vas preso), 32 casas / 12 hoteles,
+  `COLOR_GROUPS`, porcentajes de interés de hipoteca y reventa.
+- `src/i18n/`: diccionario propio tipado (ADR 0005) en es-AR y en, con nombres de casillas,
+  bajadas, nombres genéricos, textos de cartas, grupos, mazos, etiquetas de reglas y la UI que
+  ya existía. `createTranslator(locale)` con `t`, `translate`, `money`, `number`, `tileName`,
+  `tileDetail`, `groupName` y `cardText`.
+- `apps/web` usa el traductor de shared; se borró el diccionario provisorio de M0.
+- CI: matriz `ubuntu-latest` + `windows-latest` en los jobs de checks y de e2e.
+
+**Tests** (84 nuevos; 98 en total)
+
+- Tablero: 40 casillas en orden; 22 propiedades, 4 subtes, 2 servicios, 2 impuestos, 3 + 3
+  casillas de carta y las 4 esquinas en su lugar; las 22 propiedades contra una tabla
+  transcripta a mano del SPEC; hipoteca = 50 %; grupos de 2/3 con el mismo costo de casa;
+  precio no decreciente; solo Edenor y AySA son marcas; snapshot.
+- Cartas: 16 + 16 contra tablas transcriptas del SPEC; las 2 copias del subte comparten
+  texto; una "Salí gratis" por mazo; snapshot.
+- Esquemas: rechazan tableros incompletos o desordenados, ids repetidos, campos extra,
+  alquileres cortos, mazos de 15, cartas del otro mazo, `steps: 0` y efectos cruzados.
+- Reglas: defaults de §5.9, overrides, base del server, rangos inválidos.
+- i18n: **es-AR y en tienen exactamente las mismas claves**, con los mismos parámetros y la
+  misma forma (plural o no); ningún texto vacío; toda casilla tiene nombre y **toda casilla con
+  `brand: true` tiene nombre genérico en los dos idiomas**; solo las marcas tienen genérico;
+  toda carta renderiza sin `{param}` sin completar; todo grupo y toda regla tiene etiqueta;
+  plata, plurales y genéricos con valores concretos.
+- **Chequeo de tipos**: `@ts-expect-error` sobre clave inexistente, parámetro faltante o mal
+  nombrado, `count` no numérico y parámetros de más. Verificado a mano que borrar o agregar
+  una clave en `en.ts` no compila.
+
+**Verificado localmente**: typecheck, lint, format, test (98), coverage (shared 97 % de
+líneas), build, el bundle del server arranca, `tsx` resuelve los JSON y e2e (4).
+
+### Decisiones técnicas de M1
+
+1. **Los datos no se parsean con zod al cargar el módulo.** Hacerlo subía el JS de la web de
+   82 a 115 kB gzip. Ahora se validan en tests y en el arranque del server; el cliente usa un
+   cast documentado. `COLOR_GROUPS` vive en `constants.ts` para que importar los datos no
+   arrastre zod, y `shared` está marcado `sideEffects: false`. Web: 86,5 kB gzip y zod ausente
+   del bundle (verificado).
+2. **`with { type: 'json' }`** en los imports de JSON: lo exige Node ESM y lo entienden Vite,
+   Vitest, tsx y tsup.
+3. **Claves de casilla**: `tile.<id>` (nombre), `tile.<id>.detail` (bajada opcional),
+   `tile.<id>.generic` (solo marcas). Las casillas de Suerte/Barrio comparten `tile.chance` /
+   `tile.community`.
+4. Agregados a `RulesConfig`: `auctionBidSeconds` y `maxRounds` (ver SPEC §15.2).
+
+**Pendiente / deuda conocida**
+
+- El CI con Windows nunca corrió (no hay repo). Pendiente que confirmes `pnpm install` +
+  `pnpm test` en tu Windows 10.
+- `resolveRules` usa zod: si el cliente lo importa (formulario de reglas del lobby, M5), zod
+  vuelve al bundle. Se evalúa ahí; probablemente alcance con validar en el server.
+- El mazo de eventos argentinos queda para M8.
+
+**Cómo probarlo**
+
+```sh
+pnpm install
+pnpm test                                  # 98 tests
+pnpm vitest run --project shared           # solo los datos e i18n
+```
 
 ---
 
