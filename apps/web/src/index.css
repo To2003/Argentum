@@ -1,17 +1,90 @@
 @import 'tailwindcss';
 
 /*
- * Tokens de marca. Celeste, blanco y dorado con acentos cálidos, sin ser una
- * bandera literal (SPEC.md §7.1). Los temas de tablero llegan en M6.
+ * Dirección "Río de la Plata" (SPEC.md §7.1): tinta del río, celeste, sol de
+ * mayo y un rojo de fileteado para lo que pide atención. Sin bandera literal.
+ * Bricolage Grotesque para títulos (con carácter), Atkinson Hyperlegible para
+ * datos y textos chicos (se lee aun en las casillas).
  */
 @theme {
+  --color-tinta: #14283a;
   --color-celeste: #74acdf;
-  --color-dorado: #f5b700;
-  --color-noche: #0b1f3a;
-  --color-arena: #f7f3ea;
+  --color-celeste-claro: #d6e8f6;
+  --color-sol: #f2b705;
+  --color-papel: #f6f8f9;
+  --color-tablero: #e3ecf1;
+  --color-fileteado: #c0392b;
+  --color-ganancia: #1e7d4f;
+
+  --color-grupo-brown: #8b5a2b;
+  --color-grupo-lightBlue: #9ed3f0;
+  --color-grupo-pink: #d9418c;
+  --color-grupo-orange: #f08a24;
+  --color-grupo-red: #d7263d;
+  --color-grupo-yellow: #f5d000;
+  --color-grupo-green: #1e9e5a;
+  --color-grupo-darkBlue: #1f4e9e;
+
+  --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  font-family: var(--font-sans);
+  background-color: var(--color-papel);
+  color: var(--color-tinta);
 }
 
 body {
-  background-color: var(--color-arena);
-  color: var(--color-noche);
+  background-color: var(--color-papel);
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-sol);
+  outline-offset: 2px;
+}
+
+/*
+ * El tablero: un contenedor cuadrado. Sus medidas internas usan `cqw`, así
+ * todo escala con el lado del tablero (13 unidades = 2 + 9 + 2).
+ */
+.board {
+  container-type: inline-size;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  grid-template-columns: 2fr repeat(9, 1fr) 2fr;
+  grid-template-rows: 2fr repeat(9, 1fr) 2fr;
+}
+
+/* Contenido de una casilla lateral: 1 × 2 unidades, rotado para mirar al centro. */
+.tile-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(100cqw / 13);
+  height: calc(200cqw / 13);
+}
+.tile-inner[data-corner='true'] {
+  width: calc(200cqw / 13);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Con el tablero chico (celular, vista completa) los nombres quedarían de ~4 px
+ * e ilegibles: se ocultan y quedan la banda, las fichas y los edificios. Se
+ * leen acercando el tablero o tocando la casilla (SPEC.md §7.7).
+ */
+@container (max-width: 560px) {
+  .tile-text {
+    display: none;
+  }
 }
