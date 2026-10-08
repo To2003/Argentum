@@ -74,7 +74,17 @@ export default defineConfig(
     rules: {
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      // `_algo`: parámetro que la firma necesita y el cuerpo todavía no (puntos de extensión).
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
     },
+  },
+  {
+    // Los tests arman fixtures mutando estados conocidos: el `!` es la aserción del test.
+    files: ['**/test/**/*.{ts,tsx}'],
+    rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
   {
     files: ['packages/engine/src/**/*.ts', 'packages/shared/src/**/*.ts'],
