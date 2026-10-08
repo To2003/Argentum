@@ -26,6 +26,11 @@ ENV NODE_ENV=production
 COPY --from=build /runtime/node_modules ./node_modules
 COPY --from=build /app/apps/server/build ./build
 
+# Dónde viven las partidas (seed + acciones). Montar un volumen acá, o se van con el contenedor.
+ENV DB_PATH=/data/gran-negocio.db
+RUN mkdir -p /data
+VOLUME /data
+
 ENV PORT=3001
 EXPOSE 3001
 # WEB_ORIGIN tiene que nombrar el front desplegado, o CORS rechaza el socket.

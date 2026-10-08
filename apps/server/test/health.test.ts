@@ -21,7 +21,7 @@ describe('server', () => {
   it('responde /health', async () => {
     const response = await fetch(`${url}/health`);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, protocol: 1, tiles: 40 });
+    expect(await response.json()).toEqual({ ok: true, protocol: 1, tiles: 40, rooms: 0 });
   });
 
   it('contesta el ping por socket', async () => {
