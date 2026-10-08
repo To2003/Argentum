@@ -36,3 +36,16 @@ describe('geometría del tablero (SPEC §4.1)', () => {
     expect(() => placement(-1)).toThrow(RangeError);
   });
 });
+
+describe('centro de las casillas', () => {
+  it('la Salida abajo a la derecha, el descanso arriba a la izquierda', async () => {
+    const { tileCenter } = await import('../src/game/boardLayout.js');
+    // Corridas hacia el borde exterior (0,4 unidades) para no tapar el nombre.
+    expect(tileCenter(0)).toEqual({ x: (12 / 13) * 100, y: (12.4 / 13) * 100 });
+    expect(tileCenter(20)).toEqual({ x: (1 / 13) * 100, y: (0.6 / 13) * 100 });
+    expect(tileCenter(5).y).toBeCloseTo((12.4 / 13) * 100);
+    expect(tileCenter(15).x).toBeCloseTo((0.6 / 13) * 100);
+    expect(tileCenter(35).x).toBeCloseTo((12.4 / 13) * 100);
+    expect(tileCenter(10, true)).not.toEqual(tileCenter(10, false));
+  });
+});

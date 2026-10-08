@@ -32,3 +32,36 @@ export function placement(index: number): Placement {
   if (index === 30) return { row: 1, col: 11, side: 'corner', rotation: 270 };
   return { row: index - 29, col: 11, side: 'right', rotation: 270 };
 }
+
+/** Dónde empieza y cuánto mide cada fila/columna, en unidades de las 13 del tablero. */
+const span = (line: number): { start: number; size: number } =>
+  line === 1
+    ? { start: 0, size: 2 }
+    : line === 11
+      ? { start: 11, size: 2 }
+      : { start: line, size: 1 };
+
+/**
+ * El centro de una casilla en % del tablero (para dibujar las fichas encima y
+ * animarlas de casilla en casilla). En la Cárcel, los presos van adentro
+ * (arriba a la derecha de la esquina) y los de visita en el borde.
+ */
+export function tileCenter(index: number, inJail = false): { x: number; y: number } {
+  const { row, col } = placement(index);
+  const r = span(row);
+  const c = span(col);
+  let x = c.start + c.size / 2;
+  let y = r.start + r.size / 2;
+  // Hacia el borde exterior, para no tapar el nombre (que está más cerca de la banda).
+  const OUTWARD = 0.4;
+  const { side } = placement(index);
+  if (side === 'bottom' || index === 0) y += OUTWARD;
+  else if (side === 'top' || index === 20 || index === 30) y -= OUTWARD;
+  else if (side === 'left') x -= OUTWARD;
+  else if (side === 'right') x += OUTWARD;
+  if (index === 10) {
+    x = inJail ? 1.35 : 0.5;
+    y = inJail ? 11.65 : 12.4;
+  }
+  return { x: (x / 13) * 100, y: (y / 13) * 100 };
+}

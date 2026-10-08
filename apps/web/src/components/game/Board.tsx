@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { placement } from '../../game/boardLayout.js';
 import { GROUP_COLORS } from '../../game/colors.js';
 import { i18n, t } from '../../i18n.js';
-import { TokenBadge } from '../ui.js';
+import { TokenLayer } from './TokenLayer.js';
 
 /**
  * El tablero 11 × 11 (SPEC.md §4.1). Cada casilla es un botón que abre su
@@ -14,14 +14,21 @@ export function Board({
   view,
   onTile,
   center,
+  positions,
+  jailed,
 }: {
   view: PlayerView;
   onTile: (index: number) => void;
   center: ReactNode;
+  /** Dónde dibujar cada ficha (la animación va detrás del estado real). */
+  positions: Readonly<Record<string, number>>;
+  /** Quién está yendo preso ahora (sacude el tablero). */
+  jailed: string | null;
 }) {
   return (
     <div
-      className="board w-full rounded-[2%] bg-tablero p-[0.4%] shadow-[0_10px_30px_-12px_rgba(20,40,58,0.45)]"
+      key={jailed ?? 'board'}
+      className={`board relative w-full rounded-[2%] bg-tablero p-[0.4%] shadow-[0_10px_30px_-12px_rgba(20,40,58,0.45)] ${jailed === null ? '' : 'board-shake'}`}
       data-testid="board"
     >
       {BOARD.map((tile) => (
@@ -40,6 +47,7 @@ export function Board({
       >
         {center}
       </div>
+      <TokenLayer view={view} positions={positions} jailed={jailed} />
     </div>
   );
 }
@@ -71,7 +79,7 @@ function Tile({ tile, view, onClick }: { tile: TileData; view: PlayerView; onCli
       onClick={onClick}
       aria-label={label}
       data-tile={tile.index}
-      className="relative overflow-hidden border-[0.12cqw] border-tinta/25 bg-white text-tinta transition hover:z-10 hover:brightness-95 focus-visible:z-10"
+      className="relative overflow-hidden border-[0.12cqw] border-tinta/25 bg-white text-tinta transition-[box-shadow,filter] duration-500 hover:z-10 hover:brightness-95 focus-visible:z-10"
       style={{
         gridRow: place.row,
         gridColumn: place.col,
@@ -90,12 +98,12 @@ function Tile({ tile, view, onClick }: { tile: TileData; view: PlayerView; onCli
             style={{ backgroundColor: band }}
           >
             {houses === 5 ? (
-              <span className="h-[1.6cqw] w-[3.4cqw] rounded-[0.3cqw] bg-fileteado ring-[0.15cqw] ring-white" />
+              <span className="building-pop h-[1.6cqw] w-[3.4cqw] rounded-[0.3cqw] bg-fileteado ring-[0.15cqw] ring-white" />
             ) : (
               Array.from({ length: houses }, (_, i) => (
                 <span
                   key={i}
-                  className="h-[1.3cqw] w-[1.3cqw] rounded-[0.2cqw] bg-ganancia ring-[0.15cqw] ring-white"
+                  className="building-pop h-[1.3cqw] w-[1.3cqw] rounded-[0.2cqw] bg-ganancia ring-[0.15cqw] ring-white"
                 />
               ))
             )}
@@ -110,19 +118,6 @@ function Tile({ tile, view, onClick }: { tile: TileData; view: PlayerView; onCli
           >
             {name}
           </span>
-          {here.length > 0 && (
-            <span className="flex flex-wrap justify-center gap-[0.2cqw]">
-              {here.map((player) => (
-                <TokenBadge
-                  key={player.id}
-                  color={tokenColor(player.tokenId)}
-                  label={player.name}
-                  size="2.4cqw"
-                  active={player.id === view.currentPlayerId}
-                />
-              ))}
-            </span>
-          )}
           {price !== '' && <span className="tile-text text-[1cqw] tabular-nums">{price}</span>}
         </span>
         {owned?.mortgaged === true && (
