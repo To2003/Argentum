@@ -68,8 +68,9 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
   nombrado, `count` no numérico y parámetros de más. Verificado a mano que borrar o agregar
   una clave en `en.ts` no compila.
 
-**Verificado localmente**: typecheck, lint, format, test (98), coverage (shared 97 % de
-líneas), build, el bundle del server arranca, `tsx` resuelve los JSON y e2e (4).
+**Verificado localmente y en un clon limpio**: typecheck, lint, format, test (98), coverage
+(shared 97 % de líneas), build, el bundle del server arranca, `tsx` resuelve los JSON, e2e (4)
+y la imagen de Docker responde `/health`.
 
 ### Decisiones técnicas de M1
 
@@ -84,6 +85,11 @@ líneas), build, el bundle del server arranca, `tsx` resuelve los JSON y e2e (4)
    `tile.<id>.generic` (solo marcas). Las casillas de Suerte/Barrio comparten `tile.chance` /
    `tile.community`.
 4. Agregados a `RulesConfig`: `auctionBidSeconds` y `maxRounds` (ver SPEC §15.2).
+5. **`.gitignore` tenía `data/` suelto** (heredado del patrón del SQLite) y dejaba afuera
+   `packages/shared/data/`: todo pasaba en local y un clon nuevo no habría tenido el tablero.
+   Ahora ignora solo `apps/server/data/`. **Desde M1, la verificación de cierre de hito corre
+   sobre un clon limpio del repo** (`git clone` + `pnpm install --frozen-lockfile` + checks),
+   no sobre el working tree.
 
 **Pendiente / deuda conocida**
 
