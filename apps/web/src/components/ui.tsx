@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { TokenIcon } from '../art/icons.js';
 import { t } from '../i18n.js';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'quiet';
@@ -125,11 +126,14 @@ export function TokenBadge({
   label,
   size = '1.5rem',
   active = false,
+  tokenId,
 }: {
   color: string;
   label: string;
   size?: string;
   active?: boolean;
+  /** Si se conoce la ficha, se dibuja su ícono en vez de la inicial. */
+  tokenId?: string;
 }) {
   return (
     <span
@@ -139,7 +143,7 @@ export function TokenBadge({
       className={`inline-grid shrink-0 place-items-center rounded-full font-bold text-white ${active ? 'ring-2 ring-sol ring-offset-1' : ''}`}
       style={{ backgroundColor: color, width: size, height: size, fontSize: `calc(${size} * 0.5)` }}
     >
-      {label.slice(0, 1)}
+      {tokenId === undefined ? label.slice(0, 1) : <TokenIcon tokenId={tokenId} />}
     </span>
   );
 }

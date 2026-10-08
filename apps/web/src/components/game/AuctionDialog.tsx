@@ -82,7 +82,12 @@ export function AuctionDialog({
                 key={player.id}
                 className={`flex items-center gap-1.5 rounded-full bg-superficie px-2 py-1 text-sm ${inside ? '' : 'opacity-50'}`}
               >
-                <TokenBadge color={tokenColor(player.tokenId)} label={player.name} size="1.2rem" />
+                <TokenBadge
+                  color={tokenColor(player.tokenId)}
+                  tokenId={player.tokenId}
+                  label={player.name}
+                  size="1.2rem"
+                />
                 {player.name}
                 {player.id === phase.highBidder && (
                   <span className="font-bold">({t('auction.leading')})</span>

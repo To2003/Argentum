@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { placement } from '../../game/boardLayout.js';
 import { GROUP_COLORS } from '../../game/colors.js';
 import { i18n, t } from '../../i18n.js';
+import { TileIcon } from '../../art/icons.js';
 import type { BoardTheme } from '../../look.js';
 import { TokenLayer } from './TokenLayer.js';
 
@@ -122,6 +123,12 @@ function Tile({ tile, view, onClick }: { tile: TileData; view: PlayerView; onCli
           >
             {name}
           </span>
+          <TileIcon
+            tile={tile}
+            className={
+              corner ? 'h-[4.5cqw] w-[4.5cqw] opacity-80' : 'tile-text h-[3cqw] w-[3cqw] opacity-70'
+            }
+          />
           {price !== '' && <span className="tile-text text-[1cqw] tabular-nums">{price}</span>}
         </span>
         {owned?.mortgaged === true && (

@@ -39,7 +39,11 @@ export function GameOver({ view, events }: { view: PlayerView; events: readonly 
       <ol className="mt-4 space-y-2">
         {ranking.map((player) => (
           <li key={player.id} className="flex items-center gap-2">
-            <TokenBadge color={tokenColor(player.tokenId)} label={player.name} />
+            <TokenBadge
+              color={tokenColor(player.tokenId)}
+              tokenId={player.tokenId}
+              label={player.name}
+            />
             <span className={player.bankrupt ? 'line-through opacity-60' : ''}>{player.name}</span>
             <span className="ml-auto tabular-nums">
               {t('gameOver.netWorth')}: {i18n.money(worth[player.id] ?? 0)}

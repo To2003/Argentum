@@ -63,7 +63,11 @@ export function Lobby() {
                   {token === undefined ? (
                     <span className="h-6 w-6 rounded-full border-2 border-dashed border-tinta/30" />
                   ) : (
-                    <TokenBadge color={token.color} label={t(`token.${token.id}`)} />
+                    <TokenBadge
+                      color={token.color}
+                      tokenId={token.id}
+                      label={t(`token.${token.id}`)}
+                    />
                   )}
                   <span className="font-bold">{seat.name}</span>
                   <span className="text-sm text-tinta/60">
@@ -107,7 +111,11 @@ export function Lobby() {
                   }}
                   className={`flex items-center gap-2 rounded-full px-3 py-1.5 ring-2 disabled:opacity-40 ${chosen ? 'bg-superficie ring-tinta' : 'bg-superficie/60 ring-transparent'}`}
                 >
-                  <TokenBadge color={token.color} label={t(`token.${token.id}`)} />
+                  <TokenBadge
+                    color={token.color}
+                    tokenId={token.id}
+                    label={t(`token.${token.id}`)}
+                  />
                   {t(`token.${token.id}`)}
                 </button>
               );

@@ -55,6 +55,7 @@ export function TokenLayer({
             <div key={position} className={jailed === player.id ? 'token-jail' : 'token-hop'}>
               <TokenBadge
                 color={tokenColor(player.tokenId)}
+                tokenId={player.tokenId}
                 label={player.name}
                 size="3cqw"
                 active={player.id === view.currentPlayerId}

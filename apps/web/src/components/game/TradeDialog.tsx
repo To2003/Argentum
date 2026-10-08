@@ -248,7 +248,12 @@ function TradeEditor({
                     setRequest(EMPTY);
                   }}
                 />
-                <TokenBadge color={tokenColor(player.tokenId)} label={player.name} size="1.2rem" />
+                <TokenBadge
+                  color={tokenColor(player.tokenId)}
+                  tokenId={player.tokenId}
+                  label={player.name}
+                  size="1.2rem"
+                />
                 {player.name}
               </label>
             ))}
