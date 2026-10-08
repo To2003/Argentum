@@ -533,3 +533,17 @@ Decisiones tomadas en modo autónomo (detalle y cómo revertirlas en `REVIEW.md`
 11. Lo que se le debía a un jugador que quebró pasa a deberse al banco. Un trueque en el que participa el quebrado se invalida.
 12. `legalActions` enumera las acciones por casilla y por grupo; de las pujas devuelve solo la mínima, y los trueques no se enumeran (combinatorios).
 
+### 15.6 Server de juego (M4)
+1. **Salas**: código de 6 caracteres sin I/O/0/1 (`node:crypto`). Asientos `p1…pN` por orden de llegada; el creador es el host y, si se va del lobby, pasa al siguiente que llegó. Cada asiento tiene un **token secreto** (UUID) que solo recibe su dueño y sirve para reconectar (`room:resume`).
+2. **Arranque**: solo el host, mínimo 2 jugadores, todos listos (el host cuenta como listo). Quien no eligió ficha recibe la primera libre. El seed son 128 bits de `crypto`.
+3. **Intents**: `{ actionId, expectedVersion, action }` validados con zod. Duplicado (mismo `actionId` del mismo jugador, ventana de 64) → se responde ok sin aplicar. `expectedVersion` distinta → `STALE_STATE` sin aplicar. `timeUp` no se acepta de clientes (solo del actor `system`).
+4. **Difusión**: después de cada acción, cada asiento recibe `game:update` con su `PlayerView`, los eventos y los timers; al entrar o reconectar, `game:snapshot`. `room:state` nunca lleva tokens.
+5. **Timers** (un solo `setTimeout` por sala, al deadline más cercano):
+   - **Turno** (`turnTimerSeconds`, 0 = sin timer): cuenta desde que cambia la decisión pendiente (fase, actor o turno), no desde cada acción de gestión. Al vencer juega el **piloto automático conservador**: tira, rechaza la compra, termina el turno; solo vende o hipoteca en una deuda que no puede pagar.
+   - **Subasta**: `auctionBidSeconds` desde la última puja (o la apertura); al vencer, el server pasa por los que no van ganando.
+   - **Trueque**: `turnTimerSeconds` desde la propuesta; al vencer, el server lo rechaza en nombre del receptor.
+   - **Partida corta**: `startedAt + gameDurationMinutes` → `timeUp`. El tiempo sigue corriendo si el server se reinicia.
+6. **Desconexión**: después de `reconnectGraceSeconds` (60) el piloto juega por el desconectado (compra solo si le quedan $500). Si vuelve, recupera el control. Irse de una partida en curso equivale a desconectarse para siempre.
+7. **Rate limit**: 30 mensajes de golpe y 10 por segundo sostenidos, por socket.
+8. **Persistencia**: SQLite (`node:sqlite`) con la sala y sus acciones; al arrancar se restauran reaplicando. Las salas sin actividad por 24 h se borran. `validateGameData()` corre al arrancar.
+

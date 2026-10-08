@@ -67,3 +67,56 @@ _(Se completa al final.)_
 ### Cómo probarlo a mano (M3)
 
 `pnpm dev`, abrir `http://localhost:5173/?debug=1`, nueva partida, y usar "Auto ×200": aparecen subastas (botones `bid`/`passAuction` de cada participante), construcción e hipotecas.
+
+---
+
+## M4 — Server de juego
+
+### Qué quedó hecho
+
+- `apps/server`: salas en memoria (`RoomManager`, sin sockets, testeable), protocolo tipado con
+  esquemas zod para todo lo que entra, handlers de Socket.IO, rate limit por socket.
+- Lobby: crear, unirse por código (6 caracteres), reconectar con token, elegir ficha única,
+  listo/no listo, reglas del host (validadas con `resolveRules`), arrancar.
+- Intents con `actionId` (idempotencia) y `expectedVersion` (`STALE_STATE`); cada asiento
+  recibe su `PlayerView` filtrada después de cada acción.
+- Timers de turno, subasta, trueque y partida corta; piloto automático por timeout y por
+  desconexión (en el engine: `autopilotAction`, puro y testeado).
+- Persistencia en SQLite (seed + acciones), restauración por replay, barrido de salas viejas,
+  `validateGameData()` al arrancar, `USE_REAL_BRANDS` como default de la regla por sala.
+- Fichas (`TOKENS`) en `shared`, con nombre en es-AR y en.
+
+### Decisiones (M4)
+
+| Duda                                     | Qué elegí                                                                                                             | Por qué                                                                                                    | Cómo revertirlo                       |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| ¿Desde cuándo cuenta el timer del turno? | Desde que cambia la decisión pendiente (fase/actor/turno)                                                             | Si se reiniciara con cada acción de gestión, alguien podría colgar la partida hipotecando y deshipotecando | `resetWaiting` en `rooms.ts`          |
+| ¿Qué hace el piloto en un timeout?       | Tira, rechaza la compra, termina el turno, pasa en subastas, rechaza trueques; vende/hipoteca solo en deuda impagable | SPEC §8: "acción automática segura"                                                                        | `bots/autopilot.ts`                   |
+| ¿Y por un desconectado?                  | Lo mismo, pero compra si le quedan $500                                                                               | SPEC §8 "compra solo si le sobra efectivo X"; X = $500                                                     | `DISCONNECTED_BUY_RESERVE`            |
+| ¿Irse de una partida en curso?           | Es desconectarse para siempre: lo toma el piloto                                                                      | No hay abandono/expulsión en el SPEC hasta M9                                                              | `leave` en `rooms.ts`                 |
+| ¿Arrancar sin que todos estén listos?    | No: todos menos el host tienen que estar listos                                                                       | SPEC §7.4 muestra "listo/no listo"                                                                         | `start` en `rooms.ts`                 |
+| Ventana de idempotencia                  | Los últimos 64 `actionId` por jugador, en memoria                                                                     | Un reintento real llega en segundos; tras un reinicio, `expectedVersion` frena igual el duplicado          | `IDEMPOTENCY_WINDOW`                  |
+| Rate limit                               | 30 de golpe, 10/s sostenidos por socket                                                                               | Alcanza para jugar rápido; corta un cliente que spamea                                                     | `DEFAULT_RATE_LIMIT` en `handlers.ts` |
+
+### Cambios a tests de hitos anteriores
+
+| Test                              | Cambio                             | Por qué                                                         |
+| --------------------------------- | ---------------------------------- | --------------------------------------------------------------- |
+| `server/test/health.test.ts` (M0) | `/health` ahora incluye `rooms: 0` | El health reporta cuántas salas hay (útil para monitoreo, M10). |
+
+### Deuda técnica (M4)
+
+- Espectadores, chat, revancha: M9.
+- Escalar horizontalmente (sticky sessions + adapter de Redis) está documentado en la ADR 0002, no implementado.
+- `node:sqlite` imprime un `ExperimentalWarning` al arrancar (Node 24); es inofensivo.
+
+### Qué NO se pudo verificar (M4)
+
+- El CI de GitHub de este hito (sin credenciales para hacer push).
+- No probé el server en Windows (el CI con matriz lo cubre cuando se haga push).
+
+### Cómo probarlo a mano (M4)
+
+`pnpm --filter @gran-negocio/server dev` y conectarse con cualquier cliente de Socket.IO; o
+esperar a M5, que trae la UI. Los tests `apps/server/test/game.test.ts` juegan una partida de 4
+clientes por red real, con un corte y una reconexión.

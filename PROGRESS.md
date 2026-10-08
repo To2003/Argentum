@@ -11,13 +11,30 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M1   | Datos: tablero, cartas, RulesConfig, zod, i18n          | ✅ Completado |
 | M2   | Engine núcleo                                           | ✅ Completado |
 | M3   | Engine avanzado                                         | ✅ Completado |
-| M4   | Server de juego                                         | ⬜ Pendiente  |
+| M4   | Server de juego                                         | ✅ Completado |
 | M5   | Cliente base                                            | ⬜ Pendiente  |
 | M6   | Juice y visuales                                        | ⬜ Pendiente  |
 | M7   | Subasta, comercio y construcción en la UI               | ⬜ Pendiente  |
 | M8   | Bots y simulador de balance                             | ⬜ Pendiente  |
 | M9   | Pulido                                                  | ⬜ Pendiente  |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M4 — Server de juego ✅ (modo autónomo)
+
+**Qué quedó hecho**: salas con código y tokens de asiento, lobby (fichas, listos, reglas del
+host, arranque), intents con idempotencia y `STALE_STATE`, `PlayerView` por asiento después de
+cada acción, timers (turno, subasta, trueque, partida corta) con piloto automático, reconexión
+con período de gracia, rate limit, persistencia en SQLite con restauración por replay,
+`USE_REAL_BRANDS` como default de la regla por sala. Detalle en SPEC §15.6 y `REVIEW.md`.
+
+**Tests**: 26 del server, entre ellos una partida completa de 4 clientes por sockets reales
+con un corte y una reconexión a mitad de partida (aceptación de M4), validación zod, rate
+limit, timers con reloj simulado, restauración y la base SQLite. Más 7 del piloto automático
+en el engine.
+
+**Cómo probarlo**: `pnpm vitest run --project server`.
 
 ---
 
