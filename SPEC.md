@@ -562,3 +562,11 @@ Decisiones tomadas en modo autónomo (detalle y cómo revertirlas en `REVIEW.md`
 4. Para eso los chequeos del engine aceptan un `RulesView` (jugadores, propiedades, banco y reglas), que el cliente arma a partir de su `PlayerView`.
 5. **Escenarios de desarrollo** (`POST /dev/scenario/:nombre`, solo fuera de producción): partidas armadas para probar subasta, trueque y construcción sin depender de los dados. No se persisten.
 
+### 15.9 Juice y visuales (M6)
+1. **Animaciones en CSS**, secuenciadas con **XState** en el cliente (ADR 0004, 0007): dados → saltos de casilla en casilla → carta. La UI anima hacia el resultado del server; el estado real llega antes y la animación lo alcanza.
+2. **Dados 3D** con transformaciones CSS (no WebGL; caen en la cara del server). Sin R3F/Rapier ni Framer Motion: ADR 0007.
+3. **Audio sintetizado** con Web Audio (efectos y música ambiente), volúmenes separados, silencio persistido; la música arranca apagada.
+4. **Temas de tablero**: Clásico moderno, Noche en Buenos Aires y Mapa topográfico. **Modo claro/oscuro** (sigue al sistema o se fuerza en Ajustes).
+5. **`prefers-reduced-motion`**: sin saltos, dados quietos (2D), fichas directo a destino, sin confeti; los destellos de plata quedan (no son movimiento).
+6. **Ilustraciones** propias en SVG para las 40 casillas y las 6 fichas (assets/README.md).
+

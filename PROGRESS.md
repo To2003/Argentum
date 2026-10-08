@@ -13,11 +13,24 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M3   | Engine avanzado                                         | ✅ Completado |
 | M4   | Server de juego                                         | ✅ Completado |
 | M5   | Cliente base                                            | ✅ Completado |
-| M6   | Juice y visuales                                        | ⬜ Pendiente  |
+| M6   | Juice y visuales                                        | ✅ Completado |
 | M7   | Subasta, comercio y construcción en la UI               | ✅ Completado |
 | M8   | Bots y simulador de balance                             | ⬜ Pendiente  |
 | M9   | Pulido                                                  | ⬜ Pendiente  |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M6 — Juice y visuales ✅ (modo autónomo)
+
+**Qué quedó hecho**: animación secuenciada con XState (dados, saltos casilla por casilla,
+carta que se da vuelta), plata que cuenta y destella, edificios que brotan, cárcel con shake,
+quiebra que se desvanece, confeti; dados 3D en CSS; audio sintetizado con ajustes; 3 temas de
+tablero y modo oscuro; ilustraciones SVG propias de casillas y fichas. Detalle en SPEC §15.9,
+ADR 0007 y `REVIEW.md`.
+
+**Medido**: 59,5 fps promedio con CPU 4× más lenta en Pixel 7 emulado (build de producción).
+e2e de saltos y de `prefers-reduced-motion`.
 
 ---
 

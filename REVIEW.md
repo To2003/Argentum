@@ -253,3 +253,57 @@ curl -X POST http://localhost:3001/dev/scenario/trade   # o auction, build
 
 La respuesta trae el código y los tokens; lo más simple es correr `pnpm e2e` con
 `--headed` para verlo en vivo: `pnpm exec playwright test e2e/flows.spec.ts --headed --project desktop`.
+
+---
+
+## M6 — Juice y visuales
+
+Primero lo básico, cada cosa en su commit: secuenciador + saltos de ficha, flip de carta,
+plata que cuenta, edificios, shake de la cárcel, quiebra y confeti. Después dados 3D, audio,
+temas e ilustraciones.
+
+### Qué quedó hecho
+
+- Secuenciador de animaciones con XState (`animation/sequencer.ts`) alimentado por los eventos
+  de cada actualización; fichas en una capa encima del tablero que saltan casilla por casilla.
+- Carta que se da vuelta en el centro (tocarla la saltea), plata con conteo y destello
+  verde/rojo, casas y hoteles que "brotan", tablero que tiembla al ir preso, ficha que se
+  desvanece al quebrar, confeti al ganar.
+- Dados 3D en CSS que caen en el resultado del server.
+- Audio sintetizado (dados, pasos, cobro, pago, carta, martillazo, cárcel, construcción,
+  victoria) y música ambiente, con Ajustes (silencio, volúmenes, música on/off).
+- Temas de tablero (3) y modo claro/oscuro, en Ajustes.
+- Ilustraciones SVG propias de todas las casillas y fichas.
+
+### Verificación
+
+| Qué                        | Cómo                                                                                                                    | Resultado                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Saltos casilla por casilla | e2e `motion.spec.ts`: a los 250 ms la ficha no llegó                                                                    | ✅                                                                                          |
+| `prefers-reduced-motion`   | e2e: con `reduce`, la ficha llega directo                                                                               | ✅                                                                                          |
+| 60 fps                     | Build de producción, Pixel 7 emulado, CPU 4× más lenta (CDP), midiendo `requestAnimationFrame` durante turnos completos | 59,5 fps promedio, p95 16,7 ms, 0,4 % de frames > 33 ms                                     |
+| Sin WebGL                  | Nada usa WebGL (dados en CSS)                                                                                           | ✅ por construcción                                                                         |
+| Temas y modo oscuro        | Capturas en escritorio y Pixel 7                                                                                        | Arreglado: fichas en la misma casilla se pisaban; corridas al borde para no tapar el nombre |
+
+### Decisiones (M6)
+
+| Duda                                | Qué elegí                                               | Por qué                                                                                           | Cómo revertirlo                                          |
+| ----------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Framer Motion, R3F + Rapier, Howler | No; CSS, cubos CSS 3D y Web Audio (**ADR 0007**)        | Ahorra ~250 kB de JS + ~1,5 MB de wasm; 60 fps en gama media; sin archivos de audio que licenciar | ADR 0007 describe cómo enchufar R3F detrás de `import()` |
+| Dados "con física"                  | Sin física: animación que cae en la cara del server     | El resultado lo decide el server de todas formas                                                  | `Dice3D.tsx`                                             |
+| Música                              | Apagada por defecto                                     | Que una pestaña no empiece a sonar sola                                                           | `DEFAULTS` en `audio/settings.ts`                        |
+| Modo oscuro y tablero               | El tema del tablero es independiente del modo de la app | Cada uno elige por separado                                                                       | `look.ts`                                                |
+
+### Qué NO se pudo verificar (M6)
+
+- **60 fps en un celular real de gama media**: medí en Chromium headless con CPU throttling,
+  que es una aproximación (la GPU y el compositor de un teléfono real son otros).
+- Cómo suena el audio (no tengo parlantes): los sonidos se sintetizan y el test verifica que no
+  rompan sin Web Audio, pero el balance y el volumen hay que escucharlos.
+- Safari/iOS (transformaciones 3D y Web Audio tienen particularidades ahí).
+
+### Cómo probarlo a mano (M6)
+
+`pnpm dev`, jugar una partida y abrir **Ajustes** (arriba a la derecha) para probar sonido,
+temas y modo oscuro. Para ver la versión sin movimiento: activar "reducir movimiento" en el
+sistema operativo.
