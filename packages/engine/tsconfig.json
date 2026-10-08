@@ -2,8 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "../../.tsbuild/engine"
+    "outDir": "../../.tsbuild/engine",
+    "types": ["node"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
-  "references": [{ "path": "../shared" }]
+  "references": [
+    {
+      "path": "../shared"
+    }
+  ]
 }
