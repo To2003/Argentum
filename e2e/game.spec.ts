@@ -37,7 +37,12 @@ test('dos navegadores juegan una partida completa de punta a punta', async ({ br
 
   const step = async (page: Page) => {
     // El estado cambia todo el tiempo (juega el otro): timeouts cortos y a la
-    // próxima vuelta si el botón ya no está.
+    // próxima vuelta si el botón ya no está. En una subasta, pasa.
+    const pass = page.getByRole('dialog').getByRole('button', { name: 'Paso' });
+    if (await pass.isVisible().catch(() => false)) {
+      await pass.click({ timeout: 300 }).catch(() => undefined);
+      return;
+    }
     const button = page.locator('[data-testid=actions] button').first();
     if (!(await button.isEnabled({ timeout: 300 }).catch(() => false))) return;
     await button.click({ timeout: 300 }).catch(() => undefined);
