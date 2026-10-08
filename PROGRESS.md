@@ -9,7 +9,7 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | ---- | ------------------------------------------------------- | ------------- |
 | M0   | Fundaciones: monorepo, TS strict, lint, tests, CI, docs | ✅ Completado |
 | M1   | Datos: tablero, cartas, RulesConfig, zod, i18n          | ✅ Completado |
-| M2   | Engine núcleo                                           | ⬜ Pendiente  |
+| M2   | Engine núcleo                                           | ✅ Completado |
 | M3   | Engine avanzado                                         | ⬜ Pendiente  |
 | M4   | Server de juego                                         | ⬜ Pendiente  |
 | M5   | Cliente base                                            | ⬜ Pendiente  |
@@ -18,6 +18,94 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M8   | Bots y simulador de balance                             | ⬜ Pendiente  |
 | M9   | Pulido                                                  | ⬜ Pendiente  |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M2 — Engine núcleo ✅
+
+**Qué quedó hecho** (`packages/engine`)
+
+- **PRNG sfc32 con 128 bits de estado** (ADR 0006), en reemplazo de mulberry32. Seed = 32
+  hex; verificado contra la implementación de referencia en 1000 salidas.
+- **API**: `createGame({ seed, players, rules })` y `applyAction(state, playerId, action)`.
+  Valida una sola vez (`validateAction`); una acción rechazada no clona ni consume RNG.
+- **Fases** (unión discriminada + `PHASE_ACTIONS`): `waitingRoll`, `jailDecision`,
+  `awaitingPurchase`, `postRoll`, `inDebt` (con `returnTo` y cola de deudores), `gameOver`.
+- **Reglas**: dados, dobles y tercer doble; movimiento y Salida; compra y rechazo (con
+  `onPurchaseDeclined`, `TODO(M3)` para la subasta); alquileres de propiedades (monopolio ×2,
+  casas/hotel), subtes 1–4 y servicios 4×/10×; impuestos y pozo opcional; los 32 efectos de
+  carta (10 tipos); cárcel por casilla, carta y tercer doble, con las 4 salidas; deuda mínima,
+  quiebra ante jugador o banco, fin de partida; orden inicial por suma de 2 dados con
+  desempate solo entre empatados.
+- `rules/mortgage.ts`: `mortgageInterest` / `mortgageLiftCost` (10 % hacia arriba).
+- `legal.ts`: `legalActions` filtra candidatos con `validateAction` (sin reglas propias).
+- `view.ts`: `PlayerView` armada campo por campo; sin `rngState`, sin seed y sin el orden de
+  los mazos (solo cuántas quedan); trae las acciones legales del viewer.
+- **Hot-seat de debug** (`apps/web/src/debug/HotSeat.tsx`) en `/?debug=1`, solo en dev:
+  seed, cantidad de jugadores, botones con las acciones legales, Auto ×10/×200, estado
+  completo o `PlayerView` de cada jugador, eventos crudos y log de acciones para replay.
+  El build de producción no lo incluye (verificado: el chunk no se emite).
+- `docs/turn-fsm.mmd` reescrito con las fases reales (subasta y deuda como fases con
+  `returnTo`, trueque como estado superpuesto). Validado renderizándolo con Mermaid.
+- SPEC: §3.1 (API, RNG), §3.3 (modelo refinado), nuevas §15.3 (dinero e hipotecas) y §15.4
+  (las 16 decisiones de reglas de M2 y la arquitectura del engine). ADR 0006.
+
+**Tests**: 264 en total (170 del engine).
+
+- Unitarios por regla: movimiento y Salida, dobles, compra, alquileres (todas las variantes),
+  impuestos y pozo, cárcel (todas las vías de entrada y salida), deuda, cola de deudores,
+  quiebra ante jugador y banco, fin de partida, `createGame`, validación y vista.
+- Cartas: cada carta de movimiento desde las 3 casillas de Suerte (y "Avanzá a la Salida"
+  desde las 3 de Barrio), verificando cuándo pasa por la Salida; las 14 de plata; cumpleaños,
+  presidente del consorcio, arreglos; "Salí gratis"; "más cercano" con y sin dueño; la tirada
+  `utilityCard` que no cuenta como dobles; encadenado (Retrocedé 3 → Barrio).
+- `mortgageLiftCost` con los 16 valores de hipoteca del tablero.
+- **Fuzz** (fast-check, 80 corridas × 400 pasos, 2–6 jugadores, con y sin pozo y ×2, plata
+  inicial 500 o 1500). Invariantes después de cada paso: dinero conservado contra la
+  contabilidad de los eventos (banco incluido); todo efectivo entero y ≥ 0; posiciones en
+  0–39; una propiedad = un dueño activo; ≤ 32 casas / ≤ 12 hoteles; cada mazo conserva sus 16
+  cartas contando las "Salí gratis" en mano; el orden de turno tiene a cada jugador una vez;
+  el jugador del turno y el actor nunca están quebrados; coherencia de cada fase; siempre hay
+  al menos una acción legal; toda acción legal se acepta. Además, en cada paso prueba una
+  acción ilegal al azar y exige que se rechace **sin modificar el estado ni consumir RNG**.
+  Explora deuda, quiebra y fin de partida (en 40 corridas: 19 deudas, 18 quiebras, 2 finales).
+- **Replay**: seed + acciones reproduce el mismo estado y los mismos eventos (40 corridas).
+- **Partida de bots de 200 turnos** con seed fijo (aceptación de M2): 486 acciones,
+  invariantes en verde. Sin edificios los alquileres son bajos y nadie quiebra en 200 turnos.
+- Tabla de transiciones contra el diagrama: mismas fases y todas las acciones nombradas.
+- Web: 4 tests del hot-seat (jsdom) y un e2e que lo juega en un navegador real.
+
+**Cobertura del engine**: 96 % de sentencias, 90,7 % de ramas en `src/` y 95,8 % en
+`src/rules/`, 100 % de funciones (umbral del 90 % cumplido).
+
+### Decisiones técnicas de M2
+
+1. **Fuerza bruta para forzar dados en los tests** (`rigDice`): busca el `rngState` que produce
+   las tiradas pedidas. El engine no tiene ningún gancho para tests.
+2. **`turnOrder` guarda a todos los jugadores**, incluidos los quebrados (se saltean). Así el
+   orden no se reindexa y la invariante "cada jugador exactamente una vez" es simple.
+3. **`bank`, `pot` y `deck` son ids reservados** (`RESERVED_PLAYER_IDS`): `Party` es
+   `PlayerId | 'bank' | 'pot'` y un jugador con esos ids rompería la contabilidad.
+4. **El clon del estado es `JSON.parse(JSON.stringify())`**: el estado es JSON puro y el
+   engine no tiene `structuredClone` sin tipos de DOM o Node.
+5. ESLint: `argsIgnorePattern: '^_'` (parámetros de puntos de extensión) y `!` permitido en
+   tests (los fixtures se arman mutando estados conocidos).
+6. Los tests del engine usan `types: ["node"]` (leen el diagrama con `node:fs`); la regla de
+   pureza de ESLint sigue cubriendo `src/`.
+
+**Pendiente / deuda conocida**
+
+- Todo lo marcado `TODO(M3)`: subasta al rechazar y en quiebra ante el banco, interés de
+  hipotecadas recibidas, `payDebt` y juntar plata (vender, hipotecar) en `inDebt`.
+- `validateGameData()` en el arranque del server: M4.
+
+**Cómo probarlo**
+
+```sh
+pnpm test                              # 264 tests
+pnpm vitest run --project engine       # solo el engine (~10 s)
+pnpm dev                               # y abrir http://localhost:5173/?debug=1
+```
 
 ---
 
@@ -122,7 +210,7 @@ pnpm vitest run --project shared           # solo los datos e i18n
   `Date`, `performance`, `crypto`, `process`, `fetch`, `console`, `setTimeout`/`setInterval` ni
   imports `node:*`/`fs`/`path`/`crypto`/`os`/`child_process`. **Verificado con un archivo
   sonda**: dispararon las 7 categorías (11 errores de las reglas de pureza).
-- `packages/engine`: PRNG mulberry32 (`createRng`, `nextFloat`, `nextInt`, `rollDie`,
+- `packages/engine`: PRNG mulberry32, reemplazado por sfc32 en M2 (`createRng`, `nextFloat`, `nextInt`, `rollDie`,
   `rollDice`, `shuffle`) con tests de determinismo y property-based (fast-check) y un
   snapshot de la secuencia del seed 42 que protege los replays.
 - `packages/shared`: constantes base (`TILE_COUNT`, `MIN/MAX_PLAYERS`, `PROTOCOL_VERSION`).

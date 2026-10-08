@@ -1,6 +1,6 @@
 # 0003 — Engine puro y RNG con semilla
 
-- **Estado:** aceptada (M0)
+- **Estado:** aceptada (M0). **El algoritmo (mulberry32) fue reemplazado por sfc32 en la ADR 0006**; el resto sigue vigente.
 - **Fecha:** 2026-10-07
 
 ## Contexto
@@ -11,7 +11,7 @@ para los dados, lo que es incompatible con reconstruir la partida desde el seed.
 
 ## Decisión
 
-- `reduce(state, action) → { state, events }` puro.
+- `applyAction(state, playerId, action) → { state, events }` puro (en M0 se llamaba `reduce`).
 - El server genera el **seed con `crypto`** al crear la partida. El engine usa **mulberry32**
   (`packages/engine/src/rng.ts`) y su estado vive en **`GameState.rngState`**: cada tirada
   recibe el estado y devuelve el siguiente. **Dados y barajado de mazos salen del mismo PRNG.**

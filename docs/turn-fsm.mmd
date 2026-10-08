@@ -1,72 +1,60 @@
-%% FSM del turno (SPEC.md §3.4, ADR 0004).
-%% En el engine cada estado es una variante de `state.phase.kind` y cada flecha
-%% es una entrada de la tabla de transiciones que valida `reduce`.
-%% Las fases interrumpibles (AUCTION_OPEN, IN_DEBT, TRADE_OPEN) guardan
-%% `returnTo`: la fase a la que se vuelve cuando se cierran.
+%% FSM del turno (SPEC.md §3.4, ADR 0004), tal como la implementa el engine.
+%%
+%% Convenciones (un test las chequea contra PHASE_ACTIONS en validate.ts):
+%% - `state "…" as <fase>`: una fase persistida en `state.phase.kind`.
+%% - `state "…" as _<nombre>`: un paso transitorio; pasa dentro de un mismo
+%%   applyAction y la UI lo ve como eventos (tirar, mover, cobrar, carta…).
+%% - Las flechas nombran la acción que las dispara.
+%%
+%% Interrupciones:
+%% - inDebt es una fase con `returnTo` (finishResolution | moveAfterJailFine).
+%% - auction (M3) será una fase con `returnTo`, abierta por declineProperty.
+%% - El trueque (M3) NO es una fase: es estado superpuesto (`state.trade`) que
+%%   convive con postRoll e inDebt.
 stateDiagram-v2
-    [*] --> TURN_ORDER: START_GAME
-    TURN_ORDER --> WAITING_ROLL: orden definido
+    state "Esperando tirada" as waitingRoll
+    state "Preso: pagar, usar carta o tirar" as jailDecision
+    state "Decidiendo la compra" as awaitingPurchase
+    state "Después de tirar" as postRoll
+    state "En deuda (actúa el deudor)" as inDebt
+    state "Fin de partida" as gameOver
+    state "Tirar → mover → Salida → resolver casilla (encadenado ≤ 4)" as _resolve
 
-    state "Inicio de turno" as start {
-        WAITING_ROLL
-        JAIL_DECISION
-    }
+    [*] --> waitingRoll: createGame (orden por suma de 2 dados)
 
-    WAITING_ROLL --> ROLLING: ROLL_DICE
-    JAIL_DECISION --> WAITING_ROLL: PAY_JAIL_FINE / USE_JAIL_CARD
-    JAIL_DECISION --> ROLLING: ROLL_FOR_DOUBLES
+    waitingRoll --> _resolve: rollDice
+    _resolve --> postRoll: tercer doble → cárcel sin mover
 
-    ROLLING --> MOVING: tirada válida
-    ROLLING --> JAIL: tercer doble seguido
-    ROLLING --> END_TURN: preso sin dobles (turno 1 o 2)
+    jailDecision --> waitingRoll: payJailFine / useJailCard
+    jailDecision --> _resolve: rollDice con dobles, o 3.er intento con fianza paga
+    jailDecision --> postRoll: rollDice sin dobles (intento < maxJailTurns)
+    jailDecision --> inDebt: rollDice, 3.er intento sin la fianza
 
-    MOVING --> RESOLVING_TILE: llega a la casilla (cobra Salida si pasa)
+    _resolve --> awaitingPurchase: propiedad sin dueño
+    _resolve --> inDebt: no alcanza el efectivo
+    _resolve --> waitingRoll: sacó dobles (y < 3)
+    _resolve --> postRoll: sin dobles, o Vas preso (casilla o carta)
 
-    state resolve <<choice>>
-    RESOLVING_TILE --> resolve
-    resolve --> DECISION_BUY: propiedad sin dueño
-    resolve --> PAY_RENT: propiedad ajena no hipotecada
-    resolve --> DRAW_CARD: Suerte / Barrio
-    resolve --> TAX: impuesto
-    resolve --> JAIL: Vas preso
-    resolve --> POST_ACTION: propia, hipotecada, esquina neutra
+    awaitingPurchase --> postRoll: buyProperty / declineProperty
+    awaitingPurchase --> waitingRoll: buyProperty / declineProperty, con dobles
 
-    DECISION_BUY --> POST_ACTION: BUY_PROPERTY
-    DECISION_BUY --> AUCTION_OPEN: DECLINE_PURCHASE
-    PAY_RENT --> POST_ACTION: pagado
-    TAX --> POST_ACTION: pagado
-    DRAW_CARD --> MOVING: carta de movimiento
-    DRAW_CARD --> JAIL: carta Vas preso
-    DRAW_CARD --> POST_ACTION: resto de cartas
+    postRoll --> waitingRoll: endTurn, siguiente jugador libre
+    postRoll --> jailDecision: endTurn, siguiente jugador preso
 
-    JAIL --> END_TURN: termina el turno aunque haya dobles
+    inDebt --> inDebt: declareBankruptcy, quedan deudores en la cola
+    inDebt --> postRoll: declareBankruptcy de otro (returnTo)
+    inDebt --> waitingRoll: declareBankruptcy del jugador del turno, pasa al siguiente
+    inDebt --> gameOver: declareBankruptcy, queda uno solo
 
-    POST_ACTION --> WAITING_ROLL: sacó dobles (y < 3)
-    POST_ACTION --> END_TURN: END_TURN
+    gameOver --> [*]
 
-    END_TURN --> WAITING_ROLL: siguiente jugador libre
-    END_TURN --> JAIL_DECISION: siguiente jugador preso
-    END_TURN --> GAME_OVER: queda un solo jugador / se acabó el tiempo
-
-    %% Transversales: se abren desde una fase y vuelven a `returnTo`.
-    AUCTION_OPEN --> POST_ACTION: martillazo (returnTo)
-    PAY_RENT --> IN_DEBT: no alcanza el efectivo
-    TAX --> IN_DEBT: no alcanza el efectivo
-    DRAW_CARD --> IN_DEBT: no alcanza el efectivo
-    IN_DEBT --> POST_ACTION: juntó la plata (returnTo)
-    IN_DEBT --> BANKRUPT: DECLARE_BANKRUPTCY
-    BANKRUPT --> AUCTION_OPEN: quiebra ante el banco (subasta una por una)
-    BANKRUPT --> END_TURN: quiebra ante un jugador
-    POST_ACTION --> TRADE_OPEN: PROPOSE_TRADE
-    TRADE_OPEN --> POST_ACTION: aceptado / rechazado / vencido (returnTo)
-
-    GAME_OVER --> [*]
-
-    note right of IN_DEBT
-        También puede abrir TRADE_OPEN
-        para vender propiedades.
+    note right of awaitingPurchase
+        TODO(M3): con auctionOnDecline,
+        declineProperty abre la fase auction
+        (returnTo: finishResolution).
     end note
-    note left of WAITING_ROLL
-        PAUSED_DISCONNECT es del server:
-        congela el timer, no cambia la fase.
+    note left of postRoll
+        M3: construir, hipotecar y proponer
+        trueques (state.trade, superpuesto).
+        Preso también puede.
     end note

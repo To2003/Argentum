@@ -54,18 +54,18 @@ Un juego de tablero económico **online multijugador** (2–6 jugadores, cada un
 - **MCP / herramientas del agente (si están disponibles)**: documentación actualizada de librerías (tipo Context7) **antes** de usar APIs de Vite, React Router, Socket.IO, R3F, XState; Playwright MCP para probar la UI real; Figma/Canva/Adobe si hay acceso, para definir assets.
 - **Extensiones de VS Code a recomendar en `.vscode/extensions.json`**: ESLint, Prettier, Tailwind CSS IntelliSense, Vitest Explorer, Playwright Test, Error Lens, Mermaid Preview, GitLens, Pretty TypeScript Errors, Thunder Client (o REST Client).
 - **Librerías de calidad visual** (usar con criterio, sin inflar el bundle): `framer-motion`, `@react-three/fiber`, `@react-three/drei`, `@react-three/rapier`, `howler`, `canvas-confetti`, `lottie-react` (para animaciones puntuales), `clsx`, `tailwind-merge`, `lucide-react`.
-- **Librerías de lógica/mecánicas**: `xstate` (solo cliente), `zod`, `immer` (o reducers inmutables propios), PRNG propio determinista (`mulberry32`), `nanoid` para IDs, `fast-check`.
+- **Librerías de lógica/mecánicas**: `xstate` (solo cliente), `zod`, `immer` (o reducers inmutables propios), PRNG propio determinista (`sfc32`, 128 bits; ADR 0006), `nanoid` para IDs, `fast-check`.
 
 ---
 
 ## 3. Arquitectura
 
 ### 3.1 Principios
-1. **El engine es una función pura**: `reduce(state, action) -> { state, events }`. El estado del PRNG viaja dentro del estado (`GameState.rngState`), así que mismo estado + misma acción = mismo resultado.
+1. **El engine es una función pura**: `applyAction(state, playerId, action) -> { ok, state, events } | { ok: false, error }` (quien actúa va aparte de la acción porque lo autentica el server). El estado del PRNG viaja dentro del estado (`GameState.rngState`), así que mismo estado + mismo actor + misma acción = mismo resultado. Una acción rechazada no modifica el estado ni consume RNG.
 2. **Servidor autoritativo**: el cliente envía *intenciones* (`ROLL_DICE`, `BUY_PROPERTY`, `BID`, `BUILD_HOUSE`, etc.); el servidor valida con el engine y difunde *eventos* y el estado público.
 3. **Event sourcing liviano**: cada partida guarda `seed` + log de acciones. Permite replays, debugging y reconexión.
 4. **Información**: todo es público en este juego (no hay manos ocultas); las cartas "Salí de la cárcel gratis" ya tomadas también son públicas. El seed, `rngState` y el orden de los mazos **nunca** salen del server: se filtran en una `PlayerView`.
-5. **RNG**: el server genera el seed con `crypto` al crear la partida. El engine usa un PRNG determinista (**mulberry32**) cuyo estado vive en `GameState.rngState`; dados y barajado de mazos salen del mismo PRNG. `seed + acciones[]` reconstruye la partida exacta (test de replay obligatorio).
+5. **RNG** (ADR 0006): el server genera un seed de **128 bits con `crypto`** al crear la partida. El engine usa **sfc32**, un PRNG determinista con **128 bits de estado** que vive en `GameState.rngState`; dados y barajado de mazos salen del mismo PRNG. `seed + acciones[]` reconstruye la partida exacta (test de replay obligatorio). No se usa mulberry32: sus 32 bits de estado se recuperan por fuerza bruta a partir de las tiradas observadas. *Opción a futuro para un juego público (no implementada): que el server inyecte entropía fresca en cada tirada y la guarde en el log.*
 6. **Idempotencia y concurrencia**: cada acción lleva `actionId` (el servidor ignora duplicados) y `expectedVersion`; si no coincide con la versión actual del estado, el servidor responde `STALE_STATE` y no aplica nada.
 7. **Separación render/lógica**: el cliente nunca decide resultados.
 
@@ -91,25 +91,33 @@ interface SubwayTile extends Tile { kind:'subway'; price: 200; mortgage: 100; re
 interface UtilityTile extends Tile { kind:'utility'; price: 150; mortgage: 75; multipliers: [4,10] }
 interface TaxTile extends Tile { kind:'tax'; amount: number }
 
+// Refinado en M2 (packages/engine/src/types.ts es la fuente de verdad):
 interface PlayerState {
-  id: string; name: string; tokenId: string; color: string;
+  id: string; name: string; tokenId: string;   // color, isBot y connected son del lobby/server
   cash: number; position: number;
-  inJail: boolean; jailTurns: number; jailFreeCards: number;
-  bankrupt: boolean; isBot: boolean; connected: boolean;
-  doublesStreak: number;
+  inJail: boolean; jailAttempts: number;
+  jailFreeCards: CardId[];                       // ids (públicos): vuelven al fondo de SU mazo al usarse
+  bankrupt: boolean;
 }
-interface OwnedProperty { tileIndex: number; ownerId: string|null; houses: 0|1|2|3|4|5; /*5 = hotel*/ mortgaged: boolean }
+interface OwnedProperty { ownerId: string; houses: 0|1|2|3|4|5; /*5 = hotel*/ mortgaged: boolean }
 
 interface GameState {
-  id: string; phase: Phase; turnOrder: string[]; currentPlayerId: string;
-  players: Record<string, PlayerState>; properties: Record<number, OwnedProperty>;
+  version: number;                 // sube con cada acción aplicada (expectedVersion)
+  rules: RulesConfig;
+  rngState: [number, number, number, number];  // sfc32, 128 bits; nunca sale del server
+  players: Record<string, PlayerState>;
+  turnOrder: string[];             // todos los jugadores, en orden de turno (los quebrados se saltean)
+  currentPlayerId: string;
+  phase: Phase;                    // unión discriminada; inDebt lleva returnTo (y auction en M3)
+  turn: { doublesCount: number; rollAgain: boolean; lastRoll: [number, number] | null };
+  turnNumber: number;
+  properties: Record<number, OwnedProperty>;   // sin entrada = del banco
   bank: { houses: number /*32*/; hotels: number /*12*/ };
-  decks: { chance: DeckState; community: DeckState };
-  auction?: AuctionState; trade?: TradeState; pendingDebt?: DebtState;
-  turnNumber: number; lastRoll?: [number, number]; rules: RulesConfig; log: GameEvent[];
-  version: number;   // sube con cada acción aplicada (expectedVersion)
-  rngState: number;  // estado de mulberry32; nunca sale del server
+  pot: number;                     // pozo del descanso (regla de la casa)
+  decks: { chance: CardId[]; community: CardId[] };  // boca abajo; su orden nunca sale del server
+  // trade?: TradeState            // M3: estado superpuesto, no es una fase
 }
+// Sin `log`: los eventos se devuelven en cada applyAction y los persiste el server.
 ```
 
 ### 3.4 Máquina de estados del turno (diagrama obligatorio en `/docs/turn-fsm.mmd`)
@@ -462,7 +470,7 @@ Registro de decisiones tomadas durante el desarrollo. Ante conflicto con el rest
 - **Server**: Socket.IO + Express 5 (ADR 0002). Cada intent lleva `actionId` (idempotencia) y `expectedVersion` (si no coincide → `STALE_STATE`).
 - **Web**: Vite + React + React Router, sin Next.js ni SSR (ADR 0001).
 - **FSM**: unión discriminada + tabla de transiciones en el engine; XState solo en el cliente para animaciones; fases interrumpibles con `returnTo` (ADR 0004).
-- **RNG**: seed con `crypto` en el server; mulberry32 en el engine con estado en `GameState.rngState`; dados y mazos del mismo PRNG; `rngState` y orden de mazos filtrados en la `PlayerView` (ADR 0003).
+- **RNG**: seed de 128 bits con `crypto` en el server; sfc32 en el engine con estado en `GameState.rngState`; dados y mazos del mismo PRNG; `rngState` y orden de mazos filtrados en la `PlayerView` (ADR 0003, reemplazado en la parte del algoritmo por ADR 0006).
 - **Persistencia**: memoria + snapshot SQLite (`seed + acciones[]`) hasta M9; Supabase solo para cuentas/perfiles en M10.
 - **Entorno**: el desarrollo es en Windows 10. Scripts multiplataforma, `.gitattributes` con `eol=lf`.
 - **Pureza del engine**: ESLint prohíbe en `packages/engine/src` y `packages/shared/src`: `Math.random`, `Date`, `performance`, `crypto`, `process`, `fetch`, `console`, timers e imports `node:*`/`fs`/`path`/`crypto`.
@@ -476,9 +484,37 @@ Registro de decisiones tomadas durante el desarrollo. Ante conflicto con el rest
 - **Cartas**: el texto de las que mencionan la Salida usa `{salary}` de la sala, para no mentir si el host cambia el cobro. "Servicio más cercano": si tiene dueño se **vuelve a tirar** y se paga 10× (§5.2). "Subte más cercano": 2× el alquiler que corresponde según cuántas líneas tenga el dueño; hay 2 copias con ids distintos y el mismo texto.
 - **Validación de datos**: board.json y cards.json se validan con zod en los tests y en el arranque del server (`validateGameData`), **no** al cargar el módulo: eso metía zod en el bundle del cliente (+30 kB gzip).
 
-### 15.3 Reglas de juego
-_(Se completa a medida que se resuelvan ambigüedades.)_
+### 15.3 Dinero e hipotecas
+- **Todo el dinero del engine es entero**, sin decimales.
+- **Interés de hipoteca: 10 % redondeado siempre hacia arriba al entero.** Centralizado en `mortgageInterest` / `mortgageLiftCost` (`packages/engine/src/rules/mortgage.ts`), con test para los 16 valores de hipoteca del tablero. Los dos casos que no dan entero: Edenor/AySA (hipoteca $75 → interés $7,50 → **$8**, levantarla cuesta **$83**) y Obelisco ($175 → $17,50 → **$18**, cuesta **$193**). Aplica igual al recibir una propiedad hipotecada por trueque o quiebra (M3).
 
-**Pendientes de decidir (se preguntan al llegar al hito):**
-- Redondeo del 10 % de interés de hipoteca cuando no da entero (ej.: AySA, hipoteca $75 → $7,50). (M3)
+### 15.4 Engine núcleo (M2)
+**Reglas decididas**
+1. **Orden inicial**: cada jugador tira 2 dados (suma), de mayor a menor. Los empatados vuelven a tirar solo entre ellos, para ordenarse dentro de su lugar. Cada tirada es un evento `diceRolled` con `reason: 'turnOrder'`.
+2. **Deuda y quiebra (versión mínima de M2)**: si no alcanza el efectivo se abre la fase `inDebt` y la única acción es `declareBankruptcy` (en M3 se suman vender, hipotecar y pagar). No hay pagos parciales.
+   - Quiebra **ante un jugador**: se lleva efectivo, propiedades y cartas "Salí gratis"; los edificios se venden al banco a la mitad y esa plata va al acreedor. TODO(M3): interés del 10 % de las hipotecadas.
+   - Quiebra **ante el banco** (o el pozo): el efectivo va al acreedor, las propiedades quedan sin dueño y sin edificios, y las "Salí gratis" vuelven al fondo de su mazo. TODO(M3): subastarlas una por una.
+   - Si quiebra con varias deudas abiertas (p. ej. presidente del consorcio), todo va al **acreedor de la primera deuda** de la cola y las demás deudas de ese jugador se pierden.
+3. **Cola de deudas**: las deudas de una misma acción se encolan en orden determinista (cobros y pagos múltiples empiezan por el jugador siguiente al del turno). En `inDebt` **actúa el primer deudor de la cola**, no el jugador del turno: `validateAction` toma el actor del estado de deuda.
+4. **Monopolio ×2** con el grupo completo aunque alguna esté hipotecada (sobre las no hipotecadas).
+5. Los **subtes y servicios hipotecados cuentan** para el multiplicador del dueño.
+6. **Pagar la fianza** antes de tirar: después tira normal y, si saca dobles, vuelve a tirar.
+7. **3.er intento fallido sin $50**: deuda con el banco (`returnTo: moveAfterJailFine`); si la salda mueve con esa tirada, si quiebra no mueve.
+8. **"Salí gratis" usada**: vuelve al fondo de **su** mazo. Por eso `jailFreeCards` es una lista de ids.
+9. Pagar la fianza o usar la carta: **solo al inicio del turno** (`jailDecision`).
+10. **Pozo** (regla de la casa, apagada por defecto): lo alimentan impuestos, cartas `pay`/`repairs` y la fianza. `payEach` no (va a jugadores). Arranca en $0.
+11. **Comprar sin efectivo suficiente**: no se puede en M2, solo rechazar. En M3 se podrá juntar plata durante la decisión.
+12. **"Vas preso"** (casilla, carta o tercer doble): el turno **no avanza solo**; pasa a `postRoll` sin derecho a tirar, se resetean los dobles y el jugador cierra con `endTurn` (en M3 puede construir, hipotecar o comerciar antes).
+13. Con dobles **es obligatorio volver a tirar**: no se puede terminar el turno.
+14. Alquileres, impuestos y cartas **se pagan solos** si alcanza el efectivo; la UI los anima a partir de los eventos.
+15. La tirada extra de la carta **"servicio más cercano"** es un `diceRolled` con `reason: 'utilityCard'` y **no cuenta como dobles**.
+16. **Rechazar una compra** deja la propiedad sin dueño y la fase avanza. Punto de extensión: `onPurchaseDeclined()` en `rules/purchase.ts`, marcado `TODO(M3)`, que abrirá la fase `auction` con `returnTo: finishResolution`.
+
+**Arquitectura del engine**
+- **Fases persistidas**: `waitingRoll`, `jailDecision`, `awaitingPurchase`, `postRoll`, `inDebt`, `gameOver`. Tirar, mover, cobrar la Salida, resolver la casilla y robar carta son pasos transitorios dentro de un `applyAction`. **Subasta y deuda son fases con `returnTo`; el trueque (M3) es estado superpuesto (`state.trade`), no una fase.** Diagrama en `docs/turn-fsm.mmd` (un test lo compara con la tabla de transiciones).
+- **Guarda de profundidad** en el encadenado de casillas (`MAX_RESOLUTION_DEPTH = 4`; el máximo real hoy es 2).
+- **Sin `log` en el estado**: los eventos se devuelven en cada `applyAction`. Toda variación de efectivo o del pozo es un `moneyTransferred`.
+- `bank`, `pot` y `deck` son **ids reservados**: `createGame` rechaza jugadores con esos ids.
+- **Efectos de carta**: son los **10 tipos** de §6. `moveToNearest` tiene dos variantes en el esquema (servicio con `diceMultiplier`, subte con `rentMultiplier`), por eso la unión de zod tiene 11 ramas.
+- **Hot-seat de debug** (`?debug=1`, solo en dev): sus etiquetas no pasan por i18n.
 
