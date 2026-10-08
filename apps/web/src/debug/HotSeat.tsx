@@ -7,7 +7,7 @@
  * no pasan por i18n (excepción documentada en SPEC §15.4).
  */
 import {
-  actorOf,
+  actorsOf,
   applyAction,
   createGame,
   legalActions,
@@ -38,6 +38,13 @@ interface Session {
   readonly state: GameState;
   readonly entries: readonly Entry[];
   readonly log: readonly { readonly playerId: string; readonly action: Action }[];
+}
+
+/** Etiqueta corta de una acción: el tipo y sus parámetros. */
+function describe(action: Action): string {
+  const { type, ...params } = action;
+  const values = Object.values(params).map((value) => JSON.stringify(value));
+  return values.length === 0 ? type : `${type} ${values.join(' ')}`;
 }
 
 function start(seed: string, players: number): Session {
@@ -86,8 +93,11 @@ export default function HotSeat() {
     if (session === null) return;
     let current = session;
     for (let i = 0; i < count; i += 1) {
-      const actor = actorOf(current.state);
-      if (actor === null) break;
+      const candidates = actorsOf(current.state).filter(
+        (id) => legalActions(current.state, id).length > 0,
+      );
+      const actor = candidates[Math.floor(Math.random() * candidates.length)];
+      if (actor === undefined) break;
       const legal = legalActions(current.state, actor);
       const action = legal[Math.floor(Math.random() * legal.length)];
       if (action === undefined) break;
@@ -112,13 +122,13 @@ export default function HotSeat() {
   };
 
   const state = session?.state;
-  const actor = state === undefined ? null : actorOf(state);
+  const actors = state === undefined ? [] : actorsOf(state);
   const shown =
     state === undefined ? null : viewer === 'state' ? state : toPlayerView(state, viewer);
 
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-4 p-4 font-mono text-sm">
-      <h1 className="text-xl font-bold">Hot-seat de debug (engine M2)</h1>
+      <h1 className="text-xl font-bold">Hot-seat de debug (engine)</h1>
 
       <section className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col">
@@ -165,21 +175,23 @@ export default function HotSeat() {
         <>
           <section className="flex flex-wrap items-center gap-2">
             <strong>
-              Actúa: {actor ?? '—'} · fase {state.phase.kind}
+              Actúa: {actors.join(', ') || '—'} · fase {state.phase.kind}
             </strong>
-            {actor !== null &&
-              legalActions(state, actor).map((action) => (
+            {actors.map((id) =>
+              legalActions(state, id).map((action) => (
                 <button
-                  key={action.type}
+                  key={`${id}:${JSON.stringify(action)}`}
                   type="button"
                   className="rounded bg-celeste px-3 py-1 font-bold"
                   onClick={() => {
-                    play(actor, action);
+                    play(id, action);
                   }}
                 >
-                  {action.type}
+                  {actors.length > 1 ? `${id}: ` : ''}
+                  {describe(action)}
                 </button>
-              ))}
+              )),
+            )}
             <button
               type="button"
               className="rounded border px-3 py-1"
