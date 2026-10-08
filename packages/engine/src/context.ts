@@ -1,5 +1,5 @@
 import type { GameEvent } from './events.js';
-import type { Debt, GameState, PlayerId, PlayerState, TileIndex } from './types.js';
+import type { Debt, GameState, OwnedProperty, PlayerId, PlayerState, TileIndex } from './types.js';
 
 /**
  * Lo que comparten las reglas mientras se aplica una acción: el borrador del
@@ -41,6 +41,13 @@ export function othersInTurnOrder(s: GameState, id: PlayerId): PlayerId[] {
   const start = s.turnOrder.indexOf(id);
   const rotated = [...s.turnOrder.slice(start + 1), ...s.turnOrder.slice(0, start)];
   return rotated.filter((other) => !playerOf(s, other).bankrupt);
+}
+
+/** La entrada de una casilla con dueño; si no tiene, es un bug del engine. */
+export function ownedAt(s: GameState, tile: TileIndex): OwnedProperty {
+  const owned = s.properties[tile];
+  if (owned === undefined) throw new Error(`la casilla ${tile} no tiene dueño`);
+  return owned;
 }
 
 /** Copia profunda de un estado: es JSON puro (sin funciones, fechas ni Map). */

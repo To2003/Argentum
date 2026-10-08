@@ -1,6 +1,15 @@
 import type { DeckKind } from '@gran-negocio/shared';
 import type { Dice } from './rng.js';
-import type { CardId, MoneyReason, Party, PlayerId, TileIndex } from './types.js';
+import type {
+  AuctionLot,
+  CardId,
+  GameOverReason,
+  MoneyReason,
+  Party,
+  PlayerId,
+  TileIndex,
+  TradeBundle,
+} from './types.js';
 
 /**
  * Lo que pasó, en orden. El cliente anima a partir de esto y el server lo
@@ -86,6 +95,65 @@ export type GameEvent =
     }
   | { readonly type: 'playerBankrupt'; readonly playerId: PlayerId; readonly creditor: Party }
   | { readonly type: 'turnEnded'; readonly playerId: PlayerId }
-  | { readonly type: 'gameOver'; readonly winnerId: PlayerId | null };
+  | { readonly type: 'roundStarted'; readonly round: number }
+  | {
+      readonly type: 'debtPaid';
+      readonly debtorId: PlayerId;
+      readonly creditor: Party;
+      readonly amount: number;
+    }
+  | {
+      readonly type: 'auctionOpened';
+      readonly lot: AuctionLot;
+      readonly participants: readonly PlayerId[];
+      readonly minBid: number;
+    }
+  | { readonly type: 'bidPlaced'; readonly playerId: PlayerId; readonly amount: number }
+  | { readonly type: 'auctionPassed'; readonly playerId: PlayerId }
+  | {
+      readonly type: 'auctionClosed';
+      readonly lot: AuctionLot;
+      /** null: nadie pujó y queda en el banco. */
+      readonly winnerId: PlayerId | null;
+      readonly amount: number;
+    }
+  | {
+      readonly type: 'buildingBuilt';
+      readonly playerId: PlayerId;
+      readonly tile: TileIndex;
+      /** Edificios en la propiedad después de construir (5 = hotel). */
+      readonly houses: number;
+    }
+  | {
+      readonly type: 'buildingSold';
+      readonly playerId: PlayerId;
+      readonly tile: TileIndex;
+      readonly houses: number;
+    }
+  | { readonly type: 'propertyMortgaged'; readonly playerId: PlayerId; readonly tile: TileIndex }
+  | { readonly type: 'propertyUnmortgaged'; readonly playerId: PlayerId; readonly tile: TileIndex }
+  | {
+      readonly type: 'tradeProposed';
+      readonly tradeId: number;
+      readonly from: PlayerId;
+      readonly to: PlayerId;
+      readonly offer: TradeBundle;
+      readonly request: TradeBundle;
+      /** true si es una contraoferta de una propuesta anterior. */
+      readonly counter: boolean;
+    }
+  | { readonly type: 'tradeAccepted'; readonly tradeId: number }
+  | {
+      readonly type: 'tradeClosed';
+      readonly tradeId: number;
+      readonly reason: 'rejected' | 'cancelled' | 'invalidated';
+    }
+  | {
+      readonly type: 'gameOver';
+      readonly winnerId: PlayerId | null;
+      readonly reason: GameOverReason;
+      /** Patrimonio neto de cada jugador activo al terminar (SPEC.md §5.8). */
+      readonly netWorth: Readonly<Record<PlayerId, number>>;
+    };
 
 export type GameEventType = GameEvent['type'];

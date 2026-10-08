@@ -13,7 +13,7 @@ import { startTurn } from './rules/turn.js';
 import type { GameState, PlayerId, PlayerSetup } from './types.js';
 
 /** Valores especiales de `Party` y de los eventos: no pueden ser ids de jugador. */
-export const RESERVED_PLAYER_IDS: readonly string[] = ['bank', 'pot', 'deck'];
+export const RESERVED_PLAYER_IDS: readonly string[] = ['bank', 'pot', 'deck', 'system'];
 
 export interface GameSetup {
   /** 128 bits en hex, generado por el server con crypto. */
@@ -76,10 +76,13 @@ export function createGame(setup: GameSetup): { state: GameState; events: readon
     phase: { kind: 'waitingRoll' },
     turn: { doublesCount: 0, rollAgain: false, lastRoll: null },
     turnNumber: 1,
+    round: 1,
     properties: {},
     bank: { houses: BANK_HOUSES, hotels: BANK_HOTELS },
     pot: 0,
     decks: { chance: chance.value, community: community.value },
+    trade: null,
+    nextTradeId: 1,
   };
 
   const ctx = createCtx(state);
