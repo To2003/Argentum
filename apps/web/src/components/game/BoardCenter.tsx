@@ -1,6 +1,6 @@
 import type { PlayerView } from '@gran-negocio/engine';
 import { i18n, t } from '../../i18n.js';
-import { Die } from '../ui.js';
+import { Dice3D } from './Dice3D.js';
 
 /**
  * El centro del tablero: el único lugar con gesto de marca. El nombre en
@@ -11,8 +11,13 @@ export function BoardCenter({
   view,
   dice,
   rolling,
+  seed,
+  reducedMotion,
 }: {
   view: PlayerView;
+  /** Sube con cada tirada (reinicia la animación de los dados). */
+  seed: number;
+  reducedMotion: boolean;
   /** Los dados que muestra la animación (los del server, al terminar de rodar). */
   dice: readonly [number, number] | null;
   rolling: boolean;
@@ -43,12 +48,14 @@ export function BoardCenter({
         {roll !== null ? (
           <>
             <span className="sr-only">{t('game.lastRoll', { a: roll[0], b: roll[1] })}</span>
-            <span
-              aria-hidden="true"
-              className={`flex gap-[1.2cqw] [&>svg]:h-[7cqw] [&>svg]:w-[7cqw] ${rolling ? 'dice-tumble' : ''}`}
-            >
-              <Die value={roll[0]} />
-              <Die value={roll[1]} />
+            <span aria-hidden="true" className="flex gap-[1.2cqw]">
+              <Dice3D value={roll[0]} rolling={rolling} seed={seed} reducedMotion={reducedMotion} />
+              <Dice3D
+                value={roll[1]}
+                rolling={rolling}
+                seed={seed + 1}
+                reducedMotion={reducedMotion}
+              />
             </span>
           </>
         ) : null}

@@ -136,7 +136,13 @@ function Game({
               jailed={animation.jailed}
               center={
                 <>
-                  <BoardCenter view={view} dice={animation.dice} rolling={animation.rolling} />
+                  <BoardCenter
+                    view={view}
+                    dice={animation.dice}
+                    rolling={animation.rolling}
+                    seed={updateSeq}
+                    reducedMotion={animation.reducedMotion}
+                  />
                   {animation.card !== null && (
                     <CardReveal view={view} card={animation.card} onSkip={animation.skip} />
                   )}
