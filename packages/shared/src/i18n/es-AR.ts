@@ -20,6 +20,14 @@ export const esAR = {
   'notFound.title': 'Esta página no existe',
   'notFound.back': 'Volver al inicio',
 
+  // Fichas
+  'token.mate': 'Mate',
+  'token.bombo': 'Bombo',
+  'token.alfajor': 'Alfajor',
+  'token.colectivo': 'Colectivo',
+  'token.hornero': 'Hornero',
+  'token.solDeMayo': 'Sol de Mayo',
+
   // Grupos de color
   'group.brown': 'Marrón',
   'group.lightBlue': 'Celeste',

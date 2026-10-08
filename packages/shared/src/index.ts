@@ -8,6 +8,7 @@ export * from './cards.js';
 export * from './constants.js';
 export * from './i18n/index.js';
 export * from './rules.js';
+export * from './tokens.js';
 export { validateGameData } from './validate.js';
 export { BoardSchema, ColorGroupSchema, TileSchema } from './schemas/board.js';
 export { CardEffectSchema, CardSchema, DECK_SIZE, DecksSchema } from './schemas/cards.js';

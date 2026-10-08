@@ -15,6 +15,13 @@ export const en: Dictionary = {
   'notFound.title': 'This page does not exist',
   'notFound.back': 'Back to start',
 
+  'token.mate': 'Mate',
+  'token.bombo': 'Bass drum',
+  'token.alfajor': 'Alfajor',
+  'token.colectivo': 'City bus',
+  'token.hornero': 'Ovenbird',
+  'token.solDeMayo': 'Sun of May',
+
   'group.brown': 'Brown',
   'group.lightBlue': 'Light blue',
   'group.pink': 'Pink',
