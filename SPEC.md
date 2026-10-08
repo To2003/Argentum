@@ -547,3 +547,11 @@ Decisiones tomadas en modo autónomo (detalle y cómo revertirlas en `REVIEW.md`
 7. **Rate limit**: 30 mensajes de golpe y 10 por segundo sostenidos, por socket.
 8. **Persistencia**: SQLite (`node:sqlite`) con la sala y sus acciones; al arrancar se restauran reaplicando. Las salas sin actividad por 24 h se borran. `validateGameData()` corre al arrancar.
 
+### 15.7 Cliente base (M5)
+1. **Dirección visual "Río de la Plata"**: tinta `#14283A`, celeste `#74ACDF`, sol `#F2B705`, papel `#F6F8F9`, tablero `#E3ECF1`, rojo fileteado `#C0392B`. Bricolage Grotesque para títulos y Atkinson Hyperlegible para texto y datos. El gesto fuerte es uno solo: el centro del tablero (nombre a todo peso + sol de mayo); el resto es sobrio.
+2. **Tablero**: grilla 11 × 11 con `2fr repeat(9, 1fr) 2fr`; el contenido de cada casilla se rota (0°, 90°, 180°, 270°) para que la banda de color mire al centro; medidas en `cqw` (escala con el lado del tablero). El dueño se marca con un borde del color de su ficha; las hipotecadas, con rayado.
+3. **Celular**: con el tablero de menos de 560 px de ancho se ocultan los nombres y precios de las casillas (quedarían de ~4 px); se leen con "Acercar a mi ficha" (zoom con scroll) o tocando la casilla. El panel de acciones queda fijo abajo.
+4. **Acciones**: el panel muestra solo lo que `view.legal` permite; construir, vender e hipotecar están en el detalle de cada casilla (tocándola). La puja mínima sale de `view.legal`. Declararse en quiebra pide confirmación.
+5. **Sesión**: se guarda por sala en `localStorage` (con try/catch); recargar reconecta con el token.
+6. La ruta de la sala (lobby + partida) se carga como chunk aparte.
+

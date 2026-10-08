@@ -12,12 +12,30 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M2   | Engine núcleo                                           | ✅ Completado |
 | M3   | Engine avanzado                                         | ✅ Completado |
 | M4   | Server de juego                                         | ✅ Completado |
-| M5   | Cliente base                                            | ⬜ Pendiente  |
+| M5   | Cliente base                                            | ✅ Completado |
 | M6   | Juice y visuales                                        | ⬜ Pendiente  |
 | M7   | Subasta, comercio y construcción en la UI               | ⬜ Pendiente  |
 | M8   | Bots y simulador de balance                             | ⬜ Pendiente  |
 | M9   | Pulido                                                  | ⬜ Pendiente  |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M5 — Cliente base ✅ (modo autónomo)
+
+**Qué quedó hecho**: inicio, sala por link, lobby con fichas y reglas, partida jugable de punta
+a punta (tablero 11 × 11 con la geometría de §4.1, jugadores, acciones contextuales, subasta,
+deuda, detalle de casilla con alquileres y construcción/hipoteca, registro de eventos, fin de
+partida), reconexión al recargar, mobile-first con zoom. Decisiones en SPEC §15.7 y `REVIEW.md`.
+
+**Verificado en navegadores reales** (Playwright, escritorio y Pixel 7): partidas completas con
+capturas revisadas; se encontraron y arreglaron 2 bugs reales (diálogo en StrictMode y vista
+borrada al reconectar) y la ilegibilidad de las casillas en celular.
+
+**Tests**: 17 de la web (geometría del tablero, texto de eventos, diálogo, rutas, hot-seat) y un
+e2e de dos navegadores que juega una partida entera y recarga al final.
+
+**Cómo probarlo**: `pnpm dev` y abrir `http://localhost:5173` en dos navegadores.
 
 ---
 

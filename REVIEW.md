@@ -126,3 +126,68 @@ _(Se completa al final.)_
 `pnpm --filter @gran-negocio/server dev` y conectarse con cualquier cliente de Socket.IO; o
 esperar a M5, que trae la UI. Los tests `apps/server/test/game.test.ts` juegan una partida de 4
 clientes por red real, con un corte y una reconexión.
+
+---
+
+## M5 — Cliente base
+
+### Qué quedó hecho
+
+- Inicio (crear o unirse con código), sala por link `/sala/CÓDIGO` (pide el nombre si no hay
+  sesión), lobby (código, copiar link, jugadores, fichas únicas, listo, reglas editables por el
+  host y resumen para el resto, empezar), partida (tablero 11 × 11, jugadores, panel de acciones
+  contextual con subasta y deuda, detalle de casilla con alquileres y acciones, registro de
+  eventos, fin de partida con patrimonio).
+- Store de Zustand + socket tipado con el protocolo del server; reconexión con el token al
+  recargar o al volver la conexión.
+- Todo texto visible por i18n (es-AR y en, mismas claves).
+- e2e: dos navegadores (escritorio y Pixel 7) juegan una partida completa por la UI, incluida
+  una recarga al final.
+
+### Revisión visual (Playwright, escritorio 1440 × 900 y Pixel 7)
+
+Jugué partidas cortas en los dos y revisé capturas. Lo que encontré y arreglé:
+
+| Problema                                                                                                      | Arreglo                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| En celular, con el tablero entero, los nombres de las casillas quedaban de ~4 px y se rompían ("Cumb recita") | Container query: bajo 560 px se ocultan nombres y precios; se leen con zoom o tocando la casilla                                    |
+| El detalle de casilla no se abría                                                                             | Bug real: los efectos dobles de StrictMode cerraban el `<dialog>` apenas se abría. Arreglado, con test de regresión                 |
+| Al recargar en plena partida, la pantalla quedaba sin estado                                                  | Bug real: el cliente borraba la vista recibida en el snapshot (que llega antes que el ack). Arreglado; el e2e recarga y lo verifica |
+| Al terminar la partida quedaba un panel vacío                                                                 | El panel de acciones se oculta en `gameOver`                                                                                        |
+| "El GranNegocio" sin espacio para lectores de pantalla                                                        | Espacio antes del `<br>`                                                                                                            |
+
+### Decisiones (M5)
+
+| Duda                                   | Qué elegí                                                      | Por qué                                                                                | Cómo revertirlo                            |
+| -------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Texto rotado en las casillas laterales | Rotado (90°, 180°, 270°) como pide §4.1                        | Es lo que dice el SPEC; la fila de arriba queda cabeza abajo como en el tablero físico | `placement().rotation` en `boardLayout.ts` |
+| Celular, vista completa                | Sin nombres en las casillas; zoom con scroll a la propia ficha | Ilegible si no; el pinch nativo queda para M6                                          | `@container` en `index.css`                |
+| Construir/hipotecar desde dónde        | Desde el detalle de la casilla                                 | Es la acción sobre una propiedad concreta; los modales completos son M7                | `TileDialog.tsx`                           |
+| Fichas                                 | Discos de color con inicial                                    | Las ilustraciones de las fichas son M6                                                 | `TokenBadge`                               |
+
+### Cambios a tests de hitos anteriores
+
+| Test                                                                       | Cambio                                                                                | Por qué                                                                             |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `web/test/App.test.tsx` (M0) "muestra la sala con el código en mayúsculas" | Ahora espera el formulario para entrar ("Te invitaron a la sala ABC123"), asincrónico | La pantalla placeholder de M0 se reemplazó por la sala real; la ruta se carga lazy. |
+
+### Deuda técnica (M5)
+
+- Trueques sin UI (se ven, se pueden aceptar/rechazar, pero no proponer): M7.
+- Subasta con un input numérico simple; el modal completo con cuenta regresiva es M7.
+- Sin animaciones, ilustraciones, audio ni temas: M6.
+- Accesibilidad completa (patrones además del color, navegación por teclado del tablero): M9.
+
+### Qué NO se pudo verificar (M5)
+
+- Un celular real (solo la emulación Pixel 7 de Playwright). Ni Safari/iOS.
+- El CI de GitHub (sin credenciales para hacer push).
+
+### Cómo probarlo a mano (M5)
+
+```sh
+pnpm dev            # web en :5173, server en :3001
+```
+
+Abrir `http://localhost:5173` en dos navegadores (o una ventana de incógnito), crear la sala en
+uno y entrar con el código o el link en el otro.
