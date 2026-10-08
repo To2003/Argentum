@@ -23,7 +23,14 @@ export {
 } from './validate.js';
 export { minBidFor } from './rules/auction.js';
 export { netWorth } from './rules/endgame.js';
-export { buildError, mortgageError, sellError, unmortgageError } from './rules/checks.js';
+export {
+  blockedByBuildings,
+  buildError,
+  interestOnMortgaged,
+  mortgageError,
+  sellError,
+  unmortgageError,
+} from './rules/checks.js';
 export { tradeContentError } from './rules/trade.js';
 export { toPlayerView, type PlayerView, type PublicPlayer } from './view.js';
 export { autopilotAction, DISCONNECTED_BUY_RESERVE, type AutopilotMode } from './bots/autopilot.js';

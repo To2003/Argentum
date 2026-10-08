@@ -9,7 +9,7 @@ import {
   type OwnableTile,
   type PropertyTile,
 } from '@gran-negocio/shared';
-import type { ErrorCode, PlayerId, ReadonlyGameState, TileIndex } from '../types.js';
+import type { ErrorCode, PlayerId, RulesView, TileIndex } from '../types.js';
 import { mortgageInterest } from './mortgage.js';
 
 /**
@@ -40,23 +40,20 @@ export function propertyAt(tile: TileIndex): PropertyTile | null {
   return found.kind === 'property' ? found : null;
 }
 
-export const housesOn = (state: ReadonlyGameState, tile: TileIndex): number =>
+export const housesOn = (state: RulesView, tile: TileIndex): number =>
   state.properties[tile]?.houses ?? 0;
 
-export const ownsWholeGroup = (
-  state: ReadonlyGameState,
-  playerId: PlayerId,
-  group: ColorGroup,
-): boolean => GROUP_TILES[group].every((tile) => state.properties[tile]?.ownerId === playerId);
+export const ownsWholeGroup = (state: RulesView, playerId: PlayerId, group: ColorGroup): boolean =>
+  GROUP_TILES[group].every((tile) => state.properties[tile]?.ownerId === playerId);
 
-export const groupHasBuildings = (state: ReadonlyGameState, group: ColorGroup): boolean =>
+export const groupHasBuildings = (state: RulesView, group: ColorGroup): boolean =>
   GROUP_TILES[group].some((tile) => housesOn(state, tile) > 0);
 
-export const groupHasMortgage = (state: ReadonlyGameState, group: ColorGroup): boolean =>
+export const groupHasMortgage = (state: RulesView, group: ColorGroup): boolean =>
   GROUP_TILES[group].some((tile) => state.properties[tile]?.mortgaged === true);
 
 /** Si una propiedad o su grupo tienen edificios (no se puede hipotecar ni intercambiar). */
-export function blockedByBuildings(state: ReadonlyGameState, tile: TileIndex): boolean {
+export function blockedByBuildings(state: RulesView, tile: TileIndex): boolean {
   const property = propertyAt(tile);
   return property !== null && groupHasBuildings(state, property.group);
 }
@@ -67,7 +64,7 @@ export function blockedByBuildings(state: ReadonlyGameState, tile: TileIndex): b
  * pareja y sin pasarse del hotel).
  */
 export function buildShapeError(
-  state: ReadonlyGameState,
+  state: RulesView,
   playerId: PlayerId,
   tile: TileIndex,
 ): ErrorCode | null {
@@ -86,12 +83,12 @@ export function buildShapeError(
 }
 
 /** El próximo edificio en `tile` es un hotel (ya tiene 4 casas). */
-export const nextIsHotel = (state: ReadonlyGameState, tile: TileIndex): boolean =>
+export const nextIsHotel = (state: RulesView, tile: TileIndex): boolean =>
   housesOn(state, tile) === HOUSES_PER_HOTEL;
 
 /** Chequeo completo para construir, incluida la plata y el stock del banco. */
 export function buildError(
-  state: ReadonlyGameState,
+  state: RulesView,
   playerId: PlayerId,
   tile: TileIndex,
 ): ErrorCode | null {
@@ -111,7 +108,7 @@ export function buildError(
  * subasta de escasez si no fue quien la pidió (SPEC.md §15.5).
  */
 export function firstBuildableTile(
-  state: ReadonlyGameState,
+  state: RulesView,
   playerId: PlayerId,
   building: 'house' | 'hotel',
 ): TileIndex | null {
@@ -124,11 +121,7 @@ export function firstBuildableTile(
 }
 
 /** Vender un edificio de `tile` respetando la venta pareja (SPEC.md §5.4). */
-export function sellError(
-  state: ReadonlyGameState,
-  playerId: PlayerId,
-  tile: TileIndex,
-): ErrorCode | null {
+export function sellError(state: RulesView, playerId: PlayerId, tile: TileIndex): ErrorCode | null {
   const property = propertyAt(tile);
   if (property === null) return 'INVALID_TILE';
   if (state.properties[tile]?.ownerId !== playerId) return 'NOT_OWNER';
@@ -144,7 +137,7 @@ export function sellError(
 }
 
 export function mortgageError(
-  state: ReadonlyGameState,
+  state: RulesView,
   playerId: PlayerId,
   tile: TileIndex,
 ): ErrorCode | null {
@@ -157,7 +150,7 @@ export function mortgageError(
 }
 
 export function unmortgageError(
-  state: ReadonlyGameState,
+  state: RulesView,
   playerId: PlayerId,
   tile: TileIndex,
   liftCost: (mortgage: number) => number,
@@ -173,7 +166,7 @@ export function unmortgageError(
 }
 
 /** El 10 % que se paga al recibir propiedades hipotecadas (trueque o quiebra). */
-export function interestOnMortgaged(state: ReadonlyGameState, tiles: readonly TileIndex[]): number {
+export function interestOnMortgaged(state: RulesView, tiles: readonly TileIndex[]): number {
   let total = 0;
   for (const tile of tiles) {
     if (state.properties[tile]?.mortgaged !== true) continue;

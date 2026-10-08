@@ -1,16 +1,12 @@
 import type { Ctx } from '../context.js';
 import { ownedAt, playerOf } from '../context.js';
-import type { ErrorCode, PlayerId, ReadonlyGameState, TradeBundle, TradeState } from '../types.js';
+import type { ErrorCode, PlayerId, RulesView, TradeBundle, TradeState } from '../types.js';
 import { blockedByBuildings, interestOnMortgaged, isTileIndex } from './checks.js';
 import { bankOrPot, transfer } from './money.js';
 import { isOwnable, tileAt } from '@gran-negocio/shared';
 
 /** Lo que tiene que valer un lado del trueque: que `giver` lo tenga hoy. */
-function bundleError(
-  state: ReadonlyGameState,
-  giver: PlayerId,
-  bundle: TradeBundle,
-): ErrorCode | null {
+function bundleError(state: RulesView, giver: PlayerId, bundle: TradeBundle): ErrorCode | null {
   const player = state.players[giver];
   if (player === undefined) return 'UNKNOWN_PLAYER';
   if (!Number.isInteger(bundle.cash) || bundle.cash < 0) return 'INVALID_TRADE';
@@ -38,7 +34,7 @@ const isEmpty = (bundle: TradeBundle) =>
  * queda después del intercambio: así aceptar nunca abre una deuda.
  */
 export function tradeContentError(
-  state: ReadonlyGameState,
+  state: RulesView,
   from: PlayerId,
   to: PlayerId,
   offer: TradeBundle,

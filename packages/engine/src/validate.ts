@@ -66,7 +66,9 @@ export const TRADE_RESPONSES: readonly ActionType[] = [
  * cola, que puede no ser el jugador del turno (SPEC.md §15.4). En `auction`
  * no hay uno solo: pujan todos los participantes (ver `actorsOf`).
  */
-export function actorOf(state: ReadonlyGameState): PlayerId | null {
+export function actorOf(
+  state: Pick<ReadonlyGameState, 'phase' | 'currentPlayerId'>,
+): PlayerId | null {
   switch (state.phase.kind) {
     case 'gameOver':
     case 'auction':

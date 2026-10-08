@@ -248,6 +248,14 @@ export type DeepReadonly<T> = T extends (infer U)[]
 
 export type ReadonlyGameState = DeepReadonly<GameState>;
 
+/**
+ * Lo mínimo del estado que necesitan los chequeos de construir, hipotecar y
+ * trocar. Existe para que el cliente pueda explicar por qué algo no se puede
+ * usando las mismas reglas, a partir de su `PlayerView` (que no tiene RNG ni
+ * mazos).
+ */
+export type RulesView = Pick<ReadonlyGameState, 'players' | 'properties' | 'bank' | 'rules'>;
+
 export interface PlayerSetup {
   readonly id: PlayerId;
   readonly name: string;
