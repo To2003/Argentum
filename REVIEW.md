@@ -104,6 +104,12 @@ _(Se completa al final.)_
 | --------------------------------- | ---------------------------------- | --------------------------------------------------------------- |
 | `server/test/health.test.ts` (M0) | `/health` ahora incluye `rooms: 0` | El health reporta cuántas salas hay (útil para monitoreo, M10). |
 
+### Proceso (M4)
+
+- La verificación sobre un clon limpio detectó que el piloto automático bajaba la cobertura de
+  ramas del engine a 89,75 %. No se tocó el umbral: se simplificó el piloto a una tabla de
+  preferencias por fase (sin ramas muertas) y se agregaron tests de sus casos de borde.
+
 ### Deuda técnica (M4)
 
 - Espectadores, chat, revancha: M9.
