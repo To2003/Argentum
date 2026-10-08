@@ -1,24 +1,32 @@
 import { BUILDING_RESALE_PERCENT, HOUSES_PER_HOTEL, tileAt } from '@gran-negocio/shared';
 import type { Ctx } from '../context.js';
 import { playerOf } from '../context.js';
-import type { Party, PlayerId } from '../types.js';
+import type { Debt, Party, PlayerId, TileIndex } from '../types.js';
 import { returnJailCard } from './cards.js';
-import { transfer } from './money.js';
+import { interestOnMortgaged } from './checks.js';
+import { charge, transfer } from './money.js';
 
 /**
- * Quiebra (SPEC.md §5.7, versión mínima de M2; ver §15.4).
+ * Quiebra (SPEC.md §5.7, §15.4).
  *
  * - Ante un jugador: se lleva el efectivo, las propiedades y las "Salí gratis".
  *   Los edificios se le venden al banco a la mitad y esa plata va al acreedor.
- *   TODO(M3): el acreedor paga el 10 % (`mortgageInterest`) de las hipotecadas.
+ *   Por cada hipotecada que recibe paga el 10 % (`mortgageInterest`); si no le
+ *   alcanza, queda él en deuda con el banco.
  * - Ante el banco o el pozo: el efectivo va al acreedor, las propiedades
- *   vuelven al banco sin edificios y las "Salí gratis" al fondo de su mazo.
- *   TODO(M3): subastar esas propiedades una por una.
+ *   vuelven al banco sin edificios ni hipoteca y las "Salí gratis" al fondo de
+ *   su mazo. Devuelve esas propiedades para subastarlas una por una.
  */
-export function goBankrupt(ctx: Ctx, debtorId: PlayerId, creditor: Party): void {
+export function goBankrupt(ctx: Ctx, debtorId: PlayerId, creditor: Party): TileIndex[] {
   const { s } = ctx;
   const debtor = playerOf(s, debtorId);
   const toPlayer = creditor !== 'bank' && creditor !== 'pot';
+  const toAuction: TileIndex[] = [];
+  const received: TileIndex[] = [];
+  if (s.trade !== null && (s.trade.from === debtorId || s.trade.to === debtorId)) {
+    ctx.events.push({ type: 'tradeClosed', tradeId: s.trade.id, reason: 'invalidated' });
+    s.trade = null;
+  }
 
   for (const [key, owned] of Object.entries(s.properties)) {
     if (owned.ownerId !== debtorId) continue;
@@ -37,10 +45,12 @@ export function goBankrupt(ctx: Ctx, debtorId: PlayerId, creditor: Party): void 
     }
     if (toPlayer) {
       owned.ownerId = creditor;
+      received.push(index);
     } else {
-      // Exhaustividad de Record: borrar la entrada es devolverla al banco.
+      // Borrar la entrada es devolverla al banco.
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete s.properties[index];
+      toAuction.push(index);
     }
     ctx.events.push({
       type: 'propertyTransferred',
@@ -66,4 +76,21 @@ export function goBankrupt(ctx: Ctx, debtorId: PlayerId, creditor: Party): void 
   debtor.bankrupt = true;
   debtor.inJail = false;
   ctx.events.push({ type: 'playerBankrupt', playerId: debtorId, creditor });
+
+  if (toPlayer) {
+    const interest = interestOnMortgaged(s, received);
+    charge(ctx, creditor, 'bank', interest, 'mortgageInterest');
+  }
+  return toAuction.sort((a, b) => a - b);
+}
+
+/** Paga la primera deuda de la cola con el efectivo que juntó. */
+export function payDebt(ctx: Ctx, debt: Debt): void {
+  transfer(ctx, debt.debtorId, debt.creditor, debt.amount, debt.reason);
+  ctx.events.push({
+    type: 'debtPaid',
+    debtorId: debt.debtorId,
+    creditor: debt.creditor,
+    amount: debt.amount,
+  });
 }
