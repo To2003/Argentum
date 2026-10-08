@@ -555,3 +555,10 @@ Decisiones tomadas en modo autónomo (detalle y cómo revertirlas en `REVIEW.md`
 5. **Sesión**: se guarda por sala en `localStorage` (con try/catch); recargar reconecta con el token.
 6. La ruta de la sala (lobby + partida) se carga como chunk aparte.
 
+### 15.8 Subasta, trueque y construcción en la UI (M7)
+1. **Subasta**: se abre sola para quien participa (si la cierra, no se le vuelve a abrir hasta la próxima). Muestra el lote, quién va ganando, quién sigue y quién pasó, la cuenta regresiva del server y la puja con atajos (+$1, +$10, +$50 sobre el monto actual). Si no le alcanza para la mínima, solo puede pasar.
+2. **Trueque**: el editor (proponer y contraofertar) valida en vivo con `tradeContentError` del engine y explica el motivo. Avisa el 10 % de interés de las hipotecadas y deshabilita las propiedades de grupos con edificios. Al receptor se le abre solo; puede aceptar (deshabilitado con el motivo si ya no vale), rechazar o contraofertar (con los lados invertidos y precargados). Quien propuso puede retirarlo.
+3. **Tus propiedades**: por grupo, construir y vender parejo, hipotecar y levantar, y vender todo el grupo. Cada botón se habilita según `view.legal` y, si no, muestra el motivo con los chequeos del engine (`buildError`, `sellError`, `mortgageError`, `unmortgageError`).
+4. Para eso los chequeos del engine aceptan un `RulesView` (jugadores, propiedades, banco y reglas), que el cliente arma a partir de su `PlayerView`.
+5. **Escenarios de desarrollo** (`POST /dev/scenario/:nombre`, solo fuera de producción): partidas armadas para probar subasta, trueque y construcción sin depender de los dados. No se persisten.
+

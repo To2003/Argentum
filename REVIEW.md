@@ -191,3 +191,59 @@ pnpm dev            # web en :5173, server en :3001
 
 Abrir `http://localhost:5173` en dos navegadores (o una ventana de incógnito), crear la sala en
 uno y entrar con el código o el link en el otro.
+
+---
+
+## M7 — Subasta, trueque y construcción en la UI
+
+### Qué quedó hecho
+
+- Diálogo de subasta (se abre solo, cuenta regresiva, participantes, puja con atajos, pasar).
+- Editor de trueques con validación en vivo y motivo, aviso de interés por hipotecadas,
+  propuesta, contraoferta, aceptar, rechazar y retirar; se abre solo al receptor.
+- "Tus propiedades": construir/vender parejo, hipotecar/levantar, vender todo el grupo, con
+  el motivo cuando algo no se puede.
+- Escenarios de desarrollo del server para los e2e (y para probar a mano).
+- e2e de los tres flujos con dos navegadores (escritorio + Pixel 7), sin consola.
+
+### Revisión visual
+
+Capturas de los tres diálogos en escritorio y Pixel 7. Encontré y arreglé: en el editor de
+trueques, una propiedad hipotecada decía "no cobra alquiler" en vez de avisar el interés que
+paga quien la recibe (lo detectó el e2e).
+
+### Decisiones (M7)
+
+| Duda                                    | Qué elegí                                                                  | Por qué                                       | Cómo revertirlo                    |
+| --------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------- |
+| ¿La subasta se abre sola?               | Sí, para los participantes; si la cierran, queda un botón "Ver la subasta" | Es una decisión de todos a la vez y con reloj | `autoAuction` en `GameScreen.tsx`  |
+| ¿Y el trueque?                          | Se abre solo al receptor                                                   | Tiene que responder                           | `autoTrade`                        |
+| Atajos de puja                          | Suman al monto escrito (+$1, +$10, +$50)                                   | Lo más predecible                             | `AuctionDialog.tsx`                |
+| Explicar por qué no se puede            | Con los chequeos del engine sobre un `RulesView`                           | Mismas reglas que el server, sin duplicarlas  | `game/rulesView.ts`                |
+| Probar flujos que dependen de los dados | Escenarios de desarrollo (no persistidos, nunca en producción)             | E2e deterministas                             | `apps/server/src/dev/scenarios.ts` |
+
+### Cambios a tests de hitos anteriores
+
+| Test                    | Cambio                                                                  | Por qué                                            |
+| ----------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
+| `e2e/game.spec.ts` (M5) | En una subasta, el jugador automático aprieta "Paso" dentro del diálogo | M7 movió la subasta del panel a un diálogo propio. |
+
+### Deuda técnica (M7)
+
+- El historial de trueques es el registro de eventos (no hay una lista aparte).
+- La expiración del trueque es `turnTimerSeconds`; con el timer en 0, no vence.
+
+### Qué NO se pudo verificar (M7)
+
+- Celular real; el CI de GitHub (sin credenciales para hacer push).
+
+### Cómo probarlo a mano (M7)
+
+Con `pnpm dev`, crear un escenario y entrar como cada jugador:
+
+```sh
+curl -X POST http://localhost:3001/dev/scenario/trade   # o auction, build
+```
+
+La respuesta trae el código y los tokens; lo más simple es correr `pnpm e2e` con
+`--headed` para verlo en vivo: `pnpm exec playwright test e2e/flows.spec.ts --headed --project desktop`.

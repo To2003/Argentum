@@ -14,10 +14,23 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M4   | Server de juego                                         | ✅ Completado |
 | M5   | Cliente base                                            | ✅ Completado |
 | M6   | Juice y visuales                                        | ⬜ Pendiente  |
-| M7   | Subasta, comercio y construcción en la UI               | ⬜ Pendiente  |
+| M7   | Subasta, comercio y construcción en la UI               | ✅ Completado |
 | M8   | Bots y simulador de balance                             | ⬜ Pendiente  |
 | M9   | Pulido                                                  | ⬜ Pendiente  |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M7 — Subasta, comercio y construcción en la UI ✅ (modo autónomo)
+
+Hecho antes que M6, a pedido: el juego queda jugable de punta a punta antes de pulir lo visual.
+
+**Qué quedó hecho**: diálogos de subasta, trueque (proponer, contraofertar, aceptar con
+revalidación) y administración de propiedades, con validación en vivo usando los chequeos del
+engine y el motivo cuando algo no se puede; escenarios de desarrollo en el server para e2e.
+
+**Tests**: 3 e2e nuevos (subasta, trueque con contraoferta, construcción pareja) con dos
+navegadores, más 2 del server para los escenarios.
 
 ---
 
