@@ -1,4 +1,8 @@
-import type { Action } from '@gran-negocio/engine';
+import type { Action, GameEvent, PlayerView } from '@gran-negocio/engine';
+import type { RoomState, TimerState } from '@gran-negocio/server/protocol';
+import { useAnimation } from '../../animation/useAnimation.js';
+import type { LoggedEvent } from '../../store/game.js';
+import { CardReveal } from './CardReveal.js';
 import { useState } from 'react';
 import { t } from '../../i18n.js';
 import { useGame } from '../../store/game.js';
@@ -24,6 +28,8 @@ export function GameScreen() {
   const room = useGame((state) => state.room);
   const timers = useGame((state) => state.timers);
   const log = useGame((state) => state.log);
+  const lastEvents = useGame((state) => state.lastEvents);
+  const updateSeq = useGame((state) => state.updateSeq);
   const act = useGame((state) => state.act);
   const [tile, setTile] = useState<number | null>(null);
   const [zoomed, setZoomed] = useState(false);
@@ -32,6 +38,62 @@ export function GameScreen() {
   const [dismissed, setDismissed] = useState<string | null>(null);
 
   if (view === null || room === null) return null;
+  return (
+    <Game
+      view={view}
+      room={room}
+      timers={timers}
+      log={log}
+      lastEvents={lastEvents}
+      updateSeq={updateSeq}
+      act={act}
+      tile={tile}
+      setTile={setTile}
+      zoomed={zoomed}
+      setZoomed={setZoomed}
+      dialog={dialog}
+      setDialog={setDialog}
+      dismissed={dismissed}
+      setDismissed={setDismissed}
+    />
+  );
+}
+
+/** La partida ya cargada (los hooks de animación necesitan una vista no nula). */
+function Game({
+  view,
+  room,
+  timers,
+  log,
+  lastEvents,
+  updateSeq,
+  act,
+  tile,
+  setTile,
+  zoomed,
+  setZoomed,
+  dialog,
+  setDialog,
+  dismissed,
+  setDismissed,
+}: {
+  view: PlayerView;
+  room: RoomState;
+  timers: readonly TimerState[];
+  log: readonly LoggedEvent[];
+  lastEvents: readonly GameEvent[];
+  updateSeq: number;
+  act: (action: Action) => Promise<boolean>;
+  tile: number | null;
+  setTile: (tile: number | null) => void;
+  zoomed: boolean;
+  setZoomed: (update: (value: boolean) => boolean) => void;
+  dialog: PanelDialog | null;
+  setDialog: (dialog: PanelDialog | null) => void;
+  dismissed: string | null;
+  setDismissed: (key: string | null) => void;
+}) {
+  const animation = useAnimation(view, lastEvents, updateSeq);
   const me = view.viewerId;
   const mine = view.players.find((player) => player.id === me);
   const onAct = (action: Action) => {
@@ -67,7 +129,20 @@ export function GameScreen() {
           style={{ maxWidth: 'min(100%, calc(100dvh - 2rem))' }}
         >
           <div style={{ width: zoomed ? '220%' : '100%' }}>
-            <Board view={view} onTile={setTile} center={<BoardCenter view={view} />} />
+            <Board
+              view={view}
+              onTile={setTile}
+              positions={animation.positions}
+              jailed={animation.jailed}
+              center={
+                <>
+                  <BoardCenter view={view} dice={animation.dice} rolling={animation.rolling} />
+                  {animation.card !== null && (
+                    <CardReveal view={view} card={animation.card} onSkip={animation.skip} />
+                  )}
+                </>
+              }
+            />
           </div>
         </div>
         {mine !== undefined && (

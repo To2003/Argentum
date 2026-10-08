@@ -88,3 +88,141 @@ body {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------- animación (M6) */
+
+.token-move {
+  transition:
+    left 150ms ease-out,
+    top 150ms ease-out;
+}
+@keyframes token-hop {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  45% {
+    transform: translateY(-1.4cqw) scale(0.94, 1.08);
+  }
+  85% {
+    transform: translateY(0) scale(1.08, 0.9);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+.token-hop {
+  animation: token-hop 170ms ease-out;
+}
+@keyframes token-jail {
+  0% {
+    transform: scale(1.4) rotate(-12deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+.token-jail {
+  animation: token-jail 450ms cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@keyframes board-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-0.6%, 0.2%);
+  }
+  40% {
+    transform: translate(0.5%, -0.3%);
+  }
+  60% {
+    transform: translate(-0.4%, 0.1%);
+  }
+  80% {
+    transform: translate(0.3%, 0);
+  }
+}
+.board-shake {
+  animation: board-shake 420ms ease-in-out;
+}
+
+@keyframes card-flip {
+  0% {
+    transform: rotateY(0) scale(0.6);
+    opacity: 0;
+  }
+  25% {
+    transform: rotateY(0) scale(1);
+    opacity: 1;
+  }
+  60%,
+  100% {
+    transform: rotateY(180deg) scale(1);
+    opacity: 1;
+  }
+}
+.card-flip-inner {
+  animation: card-flip 900ms ease-out forwards;
+}
+
+@keyframes building-pop {
+  0% {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.building-pop {
+  animation: building-pop 380ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes money-up {
+  0% {
+    background-color: rgb(30 125 79 / 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes money-down {
+  0% {
+    background-color: rgb(192 57 43 / 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.money-up {
+  animation: money-up 900ms ease-out;
+}
+.money-down {
+  animation: money-down 900ms ease-out;
+}
+
+@keyframes dice-tumble {
+  0% {
+    transform: rotate(0) translateY(-30%);
+  }
+  50% {
+    transform: rotate(200deg) translateY(10%);
+  }
+  100% {
+    transform: rotate(360deg) translateY(0);
+  }
+}
+.dice-tumble > * {
+  animation: dice-tumble 600ms cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.token-gone {
+  opacity: 0;
+  transform: scale(0.2) rotate(40deg);
+  transition:
+    opacity 900ms ease-in,
+    transform 900ms ease-in;
+}

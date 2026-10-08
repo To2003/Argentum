@@ -7,8 +7,17 @@ import { Die } from '../ui.js';
  * Bricolage a todo peso, un sol de mayo estilizado y los dados de la última
  * tirada. Todo lo demás es tranquilo.
  */
-export function BoardCenter({ view }: { view: PlayerView }) {
-  const roll = view.turn.lastRoll;
+export function BoardCenter({
+  view,
+  dice,
+  rolling,
+}: {
+  view: PlayerView;
+  /** Los dados que muestra la animación (los del server, al terminar de rodar). */
+  dice: readonly [number, number] | null;
+  rolling: boolean;
+}) {
+  const roll = dice ?? view.turn.lastRoll;
   return (
     <>
       <svg
@@ -36,7 +45,7 @@ export function BoardCenter({ view }: { view: PlayerView }) {
             <span className="sr-only">{t('game.lastRoll', { a: roll[0], b: roll[1] })}</span>
             <span
               aria-hidden="true"
-              className="flex gap-[1.2cqw] [&>svg]:h-[7cqw] [&>svg]:w-[7cqw]"
+              className={`flex gap-[1.2cqw] [&>svg]:h-[7cqw] [&>svg]:w-[7cqw] ${rolling ? 'dice-tumble' : ''}`}
             >
               <Die value={roll[0]} />
               <Die value={roll[1]} />

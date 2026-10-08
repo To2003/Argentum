@@ -4,6 +4,7 @@ import { BOARD, tokenColor } from '@gran-negocio/shared';
 import { GROUP_COLORS } from '../../game/colors.js';
 import { i18n, t } from '../../i18n.js';
 import { TokenBadge } from '../ui.js';
+import { Money } from './Money.js';
 
 /**
  * Los jugadores (SPEC.md §7.4.3): plata, propiedades agrupadas por color,
@@ -44,11 +45,8 @@ export function PlayersPanel({
                   <span className="font-normal text-tinta/60"> ({t('lobby.you')})</span>
                 )}
               </span>
-              <span
-                className="ml-auto font-display text-lg font-extrabold tabular-nums"
-                data-testid={`cash-${player.id}`}
-              >
-                {i18n.money(player.cash)}
+              <span className="ml-auto font-display text-lg font-extrabold">
+                <Money value={player.cash} testId={`cash-${player.id}`} />
               </span>
             </div>
             <div className="mt-1 flex flex-wrap gap-x-2 text-sm text-tinta/70">
