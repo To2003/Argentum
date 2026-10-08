@@ -23,6 +23,8 @@ const server = createGameServer({
   allowedOrigins: WEB_ORIGIN.split(',').map((origin) => origin.trim()),
   store: sqliteStore(DB_PATH),
   defaultRules: resolveRules({ useRealBrands: USE_REAL_BRANDS }, DEFAULT_RULES),
+  // Escenarios de desarrollo (SCENARIOS): nunca en producción.
+  devRoutes: process.env['NODE_ENV'] !== 'production',
 });
 
 const restored = server.rooms.restore();

@@ -11,6 +11,7 @@ import {
 } from '@gran-negocio/shared';
 import { registerHandlers, type IoServer } from './handlers.js';
 import { memoryStore, type Store } from './persistence.js';
+import { isScenario, SCENARIOS } from './dev/scenarios.js';
 import { RoomManager, type Clock } from './rooms.js';
 
 export interface ServerOptions {
@@ -26,6 +27,8 @@ export interface ServerOptions {
   readonly autopilotDelayMs?: number;
   /** Límite de mensajes por socket (por defecto, el de producción). */
   readonly rateLimit?: { readonly capacity: number; readonly perSecond: number };
+  /** Rutas `/dev/*` (escenarios). Nunca en producción. */
+  readonly devRoutes?: boolean;
 }
 
 export interface GameServer {
@@ -82,6 +85,27 @@ export function createGameServer(options: ServerOptions): GameServer {
   app.get('/health', (_req, res) => {
     res.json({ ok: true, protocol: PROTOCOL_VERSION, tiles: TILE_COUNT, rooms: rooms.size });
   });
+
+  if (options.devRoutes === true) {
+    // Crea una sala ya armada para probar un flujo (e2e o a mano).
+    app.post('/dev/scenario/:name', (req, res) => {
+      const { name } = req.params;
+      if (!isScenario(name)) {
+        res.status(404).json({ ok: false });
+        return;
+      }
+      const { room, seats } = rooms.createScenario(SCENARIOS[name]);
+      res.json({
+        ok: true,
+        code: room.code,
+        seats: seats.map((seat) => ({
+          playerId: seat.playerId,
+          name: seat.name,
+          token: seat.token,
+        })),
+      });
+    });
+  }
 
   const httpServer = createServer(app);
   const io: IoServer = new Server(httpServer, {

@@ -70,6 +70,8 @@ export interface Room {
   auctionSince: number;
   /** Desde cuándo está abierto el trueque actual. */
   trade: { id: number; since: number } | null;
+  /** false en los escenarios de desarrollo: su estado no sale de seed + acciones. */
+  persisted: boolean;
 }
 
 export interface Clock {
@@ -152,6 +154,7 @@ export class RoomManager {
       waiting: { key: '', since: now },
       auctionSince: now,
       trade: null,
+      persisted: true,
     };
     const seat = this.addSeat(room, name, false);
     room.hostId = seat.playerId;
@@ -281,6 +284,33 @@ export class RoomManager {
     this.emit(room, created.events, true);
     this.schedule(room);
     return ok(null);
+  }
+
+  /**
+   * Una sala de desarrollo ya en partida (SCENARIOS): Ana y Beto, sin timer de
+   * turno, que no se persiste. Devuelve los tokens para entrar como cada uno.
+   */
+  createScenario(apply: (state: GameState) => void): { room: Room; seats: Seat[] } {
+    const { room, seat: ana } = this.create('Ana');
+    room.persisted = false;
+    this.deps.store.deleteRoom(room.code);
+    const beto = this.addSeat(room, 'Beto', false);
+    ana.tokenId = 'mate';
+    beto.tokenId = 'bombo';
+    beto.ready = true;
+    room.rules = { ...room.rules, turnTimerSeconds: 0 };
+    this.start(room, ana.playerId);
+    const state = room.state;
+    if (state === null) throw new Error('el escenario no arrancó');
+    state.turnOrder = [ana.playerId, beto.playerId];
+    state.currentPlayerId = ana.playerId;
+    state.turn = { doublesCount: 0, rollAgain: false, lastRoll: null };
+    apply(state);
+    ana.connected = false;
+    beto.connected = false;
+    this.resetWaiting(room, []);
+    this.emit(room, [], true);
+    return { room, seats: [ana, beto] };
   }
 
   // ---------------------------------------------------------------- partida
@@ -421,7 +451,7 @@ export class RoomManager {
     if (!result.ok) return fail(result.error);
     room.state = result.state;
     const entry = { playerId, action };
-    this.deps.store.appendAction(room.code, room.log.length, entry);
+    if (room.persisted) this.deps.store.appendAction(room.code, room.log.length, entry);
     room.log.push(entry);
     if (room.state.phase.kind === 'gameOver') room.status = 'finished';
     this.touch(room);
@@ -569,6 +599,7 @@ export class RoomManager {
   }
 
   private persist(room: Room): void {
+    if (!room.persisted) return;
     const stored: StoredRoom = {
       code: room.code,
       hostId: room.hostId,
@@ -615,6 +646,7 @@ export class RoomManager {
       waiting: { key: '', since: now },
       auctionSince: now,
       trade: null,
+      persisted: true,
     };
   }
 
