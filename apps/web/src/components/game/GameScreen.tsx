@@ -1,6 +1,8 @@
 import type { Action, GameEvent, PlayerView } from '@gran-negocio/engine';
 import type { RoomState, TimerState } from '@gran-negocio/server/protocol';
 import { useAnimation } from '../../animation/useAnimation.js';
+import { useGameSounds } from '../../audio/useGameSounds.js';
+import { SettingsDialog } from '../SettingsDialog.js';
 import type { LoggedEvent } from '../../store/game.js';
 import { CardReveal } from './CardReveal.js';
 import { useState } from 'react';
@@ -94,6 +96,8 @@ function Game({
   setDismissed: (key: string | null) => void;
 }) {
   const animation = useAnimation(view, lastEvents, updateSeq);
+  useGameSounds(lastEvents, updateSeq, view.viewerId);
+  const [settings, setSettings] = useState(false);
   const me = view.viewerId;
   const mine = view.players.find((player) => player.id === me);
   const onAct = (action: Action) => {
@@ -174,6 +178,17 @@ function Game({
       </div>
 
       <aside className="flex flex-col gap-4">
+        <div className="flex justify-end">
+          <Button
+            variant="quiet"
+            data-testid="open-settings"
+            onClick={() => {
+              setSettings(true);
+            }}
+          >
+            {t('settings.open')}
+          </Button>
+        </div>
         <PlayersPanel view={view} seats={room.seats} me={me} />
         <GameOver view={view} events={log.map((entry) => entry.event)} />
         {view.phase.kind !== 'gameOver' && (
@@ -189,6 +204,13 @@ function Game({
       )}
       {open === 'trade' && (
         <TradeDialog view={view} timers={timers} onAct={onAct} onClose={close} />
+      )}
+      {settings && (
+        <SettingsDialog
+          onClose={() => {
+            setSettings(false);
+          }}
+        />
       )}
       {open === 'manage' && <ManageDialog view={view} onAct={onAct} onClose={close} />}
       {tile !== null && (

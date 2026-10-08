@@ -1,6 +1,7 @@
 import type { GameEvent, PlayerView } from '@gran-negocio/engine';
 import { useActorRef, useSelector } from '@xstate/react';
 import { useEffect } from 'react';
+import { play } from '../audio/synth.js';
 import { animationMachine } from './sequencer.js';
 import { stepsFor } from './steps.js';
 import { useReducedMotion } from './useReducedMotion.js';
@@ -28,6 +29,20 @@ export function useAnimation(view: PlayerView, events: readonly GameEvent[], seq
     // `view` y `events` llegan juntos con cada `seq`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actor, seq]);
+
+  // Un "tac" por cada casilla que salta la ficha.
+  useEffect(() => {
+    let last: unknown = null;
+    const subscription = actor.subscribe((snapshot) => {
+      const step = snapshot.context.current;
+      if (step === last) return;
+      last = step;
+      if (step?.kind === 'hop') play('step');
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [actor]);
 
   const positions = useSelector(actor, (snapshot) => snapshot.context.positions);
   const dice = useSelector(actor, (snapshot) => snapshot.context.dice);

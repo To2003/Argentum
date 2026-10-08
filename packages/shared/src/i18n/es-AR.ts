@@ -406,4 +406,20 @@ export const esAR = {
   'reason.ALREADY_MORTGAGED': 'Ya está hipotecada.',
   'reason.NOT_MORTGAGED': 'No está hipotecada.',
   'reason.generic': 'No se puede ahora.',
+
+  // Ajustes (M6)
+  'settings.open': 'Ajustes',
+  'settings.sound': 'Sonido',
+  'settings.mute': 'Silenciar todo',
+  'settings.effects': 'Volumen de los efectos',
+  'settings.music': 'Música de fondo',
+  'settings.musicVolume': 'Volumen de la música',
+  'settings.theme': 'Tablero',
+  'settings.mode': 'Colores de la app',
+  'settings.mode.system': 'Como el sistema',
+  'settings.mode.light': 'Claro',
+  'settings.mode.dark': 'Oscuro',
+  'theme.classic': 'Clásico moderno',
+  'theme.night': 'Noche en Buenos Aires',
+  'theme.topo': 'Mapa topográfico',
 } as const satisfies Readonly<Record<string, Message>>;
