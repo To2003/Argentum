@@ -1,7 +1,6 @@
 import { isOwnable, tileAt } from '@gran-negocio/shared';
 import { legalActions } from '../legal.js';
-import type { Action, PlayerId, ReadonlyGameState } from '../types.js';
-import { actorOf } from '../validate.js';
+import type { Action, ActionType, PhaseKind, PlayerId, ReadonlyGameState } from '../types.js';
 
 /**
  * Piloto automático (SPEC.md §8): lo que el server hace por un jugador cuando
@@ -19,8 +18,19 @@ export type AutopilotMode = 'timeout' | 'disconnected';
 /** Efectivo que el piloto de un desconectado se guarda después de comprar. */
 export const DISCONNECTED_BUY_RESERVE = 500;
 
-const has = (legal: readonly Action[], type: Action['type']): Action | undefined =>
-  legal.find((action) => action.type === type);
+/**
+ * Qué prefiere hacer en cada fase, en orden. En `inDebt` es la única vez que
+ * vende o hipoteca solo: una deuda que no puede pagar (SPEC.md §8).
+ */
+const PREFERENCES: Readonly<Record<PhaseKind, readonly ActionType[]>> = {
+  waitingRoll: ['rollDice'],
+  jailDecision: ['rollDice'],
+  awaitingPurchase: ['declineProperty'],
+  postRoll: ['endTurn'],
+  inDebt: ['payDebt', 'sellBuilding', 'sellAllBuildings', 'mortgage', 'declareBankruptcy'],
+  auction: ['passAuction'],
+  gameOver: [],
+};
 
 export function autopilotAction(
   state: ReadonlyGameState,
@@ -28,43 +38,22 @@ export function autopilotAction(
   mode: AutopilotMode,
 ): Action | null {
   const legal = legalActions(state, playerId);
-  if (legal.length === 0) return null;
   const { phase } = state;
 
   // Un trueque que le proponen: lo rechaza.
-  if (state.trade?.to === playerId && phase.kind !== 'auction') {
-    return { type: 'rejectTrade' };
+  if (legal.some((action) => action.type === 'rejectTrade')) return { type: 'rejectTrade' };
+
+  // Desconectado y con resto: compra.
+  const buy = legal.find((action) => action.type === 'buyProperty');
+  if (mode === 'disconnected' && buy !== undefined && phase.kind === 'awaitingPurchase') {
+    const tile = tileAt(phase.tile);
+    const cash = state.players[playerId]?.cash ?? 0;
+    if (isOwnable(tile) && cash - tile.price >= DISCONNECTED_BUY_RESERVE) return buy;
   }
 
-  switch (phase.kind) {
-    case 'auction':
-      return has(legal, 'passAuction') ?? null;
-    case 'awaitingPurchase': {
-      if (actorOf(state) !== playerId) return null;
-      const tile = tileAt(phase.tile);
-      const price = isOwnable(tile) ? tile.price : Infinity;
-      const cash = state.players[playerId]?.cash ?? 0;
-      if (mode === 'disconnected' && cash - price >= DISCONNECTED_BUY_RESERVE) {
-        return has(legal, 'buyProperty') ?? { type: 'declineProperty' };
-      }
-      return { type: 'declineProperty' };
-    }
-    case 'inDebt':
-      // Deuda crítica: la única situación en que vende o hipoteca solo.
-      return (
-        has(legal, 'payDebt') ??
-        has(legal, 'sellBuilding') ??
-        has(legal, 'sellAllBuildings') ??
-        has(legal, 'mortgage') ??
-        has(legal, 'declareBankruptcy') ??
-        null
-      );
-    case 'waitingRoll':
-    case 'jailDecision':
-      return has(legal, 'rollDice') ?? null;
-    case 'postRoll':
-      return has(legal, 'endTurn') ?? null;
-    case 'gameOver':
-      return null;
+  for (const type of PREFERENCES[phase.kind]) {
+    const action = legal.find((candidate) => candidate.type === type);
+    if (action !== undefined) return action;
   }
+  return null;
 }

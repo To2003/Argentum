@@ -95,3 +95,54 @@ describe('piloto automático (SPEC §8)', () => {
     expect(current.phase.kind).toBe('gameOver');
   });
 });
+
+describe('piloto automático: casos de borde', () => {
+  it('en una compra ajena no hace nada', () => {
+    const landed = roll(newGame(), 'p1', [1, 2]).state;
+    expect(autopilotAction(landed, 'p2', 'disconnected')).toBeNull();
+  });
+
+  it('en una subasta con un trueque abierto, pasa en vez de responder el trueque', () => {
+    const state = newGame(3);
+    state.trade = {
+      id: 1,
+      from: 'p1',
+      to: 'p2',
+      offer: { cash: 1, properties: [], jailFreeCards: [] },
+      request: { cash: 0, properties: [], jailFreeCards: [] },
+    };
+    state.phase = {
+      kind: 'auction',
+      lot: { kind: 'property', tile: 3 },
+      participants: ['p1', 'p2', 'p3'],
+      highBid: 0,
+      highBidder: null,
+      queue: [],
+      returnTo: { kind: 'finishResolution' },
+    };
+    expect(autopilotAction(state, 'p2', 'timeout')).toEqual({ type: 'passAuction' });
+  });
+
+  it('en deuda, sin casas en el banco para desarmar el hotel, vende todo el grupo', () => {
+    const state = own(own(newGame(), 1, 'p1', { houses: 5 }), 3, 'p1', { houses: 5 });
+    state.bank = { houses: 0, hotels: 10 };
+    // Para mantener 32 casas: las 32 están "en otro lado" (no importa acá).
+    state.players['p1']!.cash = 0;
+    state.phase = {
+      kind: 'inDebt',
+      debts: [{ debtorId: 'p1', creditor: 'bank', amount: 200, reason: 'tax' }],
+      returnTo: { kind: 'finishResolution' },
+    };
+    expect(autopilotAction(state, 'p1', 'timeout')).toEqual({
+      type: 'sellAllBuildings',
+      group: 'brown',
+    });
+  });
+
+  it('preso al inicio del turno: tira por dobles', () => {
+    const state = newGame();
+    state.players['p1']!.inJail = true;
+    state.phase = { kind: 'jailDecision' };
+    expect(autopilotAction(state, 'p1', 'timeout')).toEqual({ type: 'rollDice' });
+  });
+});
