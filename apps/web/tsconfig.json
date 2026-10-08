@@ -9,8 +9,17 @@
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx", "vite.config.ts"],
   "references": [
-    { "path": "../../packages/shared" },
-    { "path": "../../packages/engine" },
-    { "path": "../../packages/ui" }
+    {
+      "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/engine"
+    },
+    {
+      "path": "../../packages/ui"
+    },
+    {
+      "path": "../server"
+    }
   ]
 }
