@@ -23,6 +23,8 @@ export default defineConfig({
   webServer: [
     {
       command: 'pnpm --filter @gran-negocio/server start:e2e',
+      // Bots rápidos en los e2e (en producción juegan con ~1 s de pausa).
+      env: { BOT_DELAY_MS: '40' },
       url: 'http://localhost:3001/health',
       reuseExistingServer: !CI,
     },
