@@ -570,3 +570,8 @@ Decisiones tomadas en modo autónomo (detalle y cómo revertirlas en `REVIEW.md`
 5. **`prefers-reduced-motion`**: sin saltos, dados quietos (2D), fichas directo a destino, sin confeti; los destellos de plata quedan (no son movimiento).
 6. **Ilustraciones** propias en SVG para las 40 casillas y las 6 fichas (assets/README.md).
 
+### 15.10 Bots y simulador (M8)
+1. **Bots** en el engine (`bots/bots.ts`), deterministas y por el mismo canal de intents. Fácil: compra todo lo que puede, nunca construye ni comercia, puja bajo. Medio: compra con reserva chica, puja lo que vale la propiedad para él (completar un grupo la multiplica) y construye con el grupo completo. Difícil: además valúa por retorno de cada grupo (naranjas y rojos primero), bloquea grupos ajenos y propone/evalúa trueques (uno por turno).
+2. **En la sala**: el host suma o saca bots (siempre listos, con ficha libre); el server los hace jugar con ~0,9 s de pausa.
+3. **Simulador** (`pnpm sim` → `docs/balance-report.md`): 1000 partidas por enfrentamiento con seeds fijos, tope de 400 turnos (se decide por patrimonio), asientos rotados.
+

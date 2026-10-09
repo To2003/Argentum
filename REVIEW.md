@@ -307,3 +307,53 @@ temas e ilustraciones.
 `pnpm dev`, jugar una partida y abrir **Ajustes** (arriba a la derecha) para probar sonido,
 temas y modo oscuro. Para ver la versión sin movimiento: activar "reducir movimiento" en el
 sistema operativo.
+
+---
+
+## M8 — Bots y simulador de balance
+
+### Qué quedó hecho
+
+- Bots Fácil, Medio y Difícil (engine, deterministas, mismo canal de intents).
+- Bots en la sala: el host los suma o saca en el lobby; el server los hace jugar.
+- Simulador headless y `pnpm sim`, que escribe `docs/balance-report.md`.
+- **Aceptación**: Medio le gana al Fácil en el **84,3 %** de 1000 partidas (96,4 % contando
+  solo las que terminaron). Hay un test que lo verifica sobre 1000 partidas.
+
+### Hallazgos de balance (ver `docs/balance-report.md`)
+
+| Hallazgo                                                                             | Lectura                                                                                                       |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Difícil vs. Medio: 54 % / 46 %                                                       | El trueque y la valuación por retorno suman, pero poco con dos jugadores.                                     |
+| En partidas de 4 (Difícil, Medio, Fácil, Fácil), el 81 % llega al tope de 400 turnos | Sin trueques, con cuatro jugadores casi nadie completa un grupo y nadie quiebra. Es el estancamiento clásico. |
+| Ventaja del primero en partidas de 4: 29,5 % vs. 19,9 % del cuarto                   | Esperable: el primero llega antes a las propiedades libres.                                                   |
+| Los subtes tienen el mejor retorno (1,46) y los grupos de color ~0,4                 | Con tan poca construcción, mandan los alquileres base; con más trueques cambiaría.                            |
+
+Ajustes propuestos (documentados en el reporte, **no activados**): sugerir `maxRounds` en
+partidas de 2, impuesto creciente, subasta forzada de propiedades sueltas, bots más dispuestos
+a trocar.
+
+### Decisiones (M8)
+
+| Duda                                      | Qué elegí                                         | Por qué                                                                                                                              | Cómo revertirlo              |
+| ----------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| ¿El Fácil construye?                      | No                                                | "Compra casi todo, nunca comercia": no aprovechar los grupos es lo que lo hace fácil. Con construcción, el Medio solo ganaba el 57 % | `PROFILES.easy.buildReserve` |
+| Bots con azar                             | No: deterministas                                 | El reporte se reproduce exacto y los tests no son frágiles                                                                           | `bots.ts`                    |
+| ¿Cómo se gana una partida que no termina? | Por patrimonio neto al llegar al tope (como §5.8) | Si no, el 28 % de las partidas con el Fácil no tendría ganador                                                                       | `playBotGame`                |
+| Memoria de los bots                       | Solo "ya propuse un trueque este turno"           | Para no proponer lo mismo en bucle                                                                                                   | `BotMemory`                  |
+
+### Cambios a tests de hitos anteriores
+
+| Test                             | Cambio                                                                             | Por qué                           |
+| -------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------- |
+| `server/test/rooms.test.ts` (M4) | El asiento público incluye `bot: null`; el `manager()` de prueba pasa `botDelayMs` | Campo y dependencia nuevos de M8. |
+
+### Qué NO se pudo verificar (M8)
+
+- Que el bot Difícil "se sienta" difícil para una persona: está medido contra otros bots, no
+  contra humanos.
+
+### Cómo probarlo a mano (M8)
+
+`pnpm dev`, crear una sala, "Sumar un bot" (Fácil/Medio/Difícil) y empezar. `pnpm sim` vuelve
+a generar el reporte (~2 minutos).

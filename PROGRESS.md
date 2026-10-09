@@ -15,9 +15,19 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M5   | Cliente base                                            | ✅ Completado |
 | M6   | Juice y visuales                                        | ✅ Completado |
 | M7   | Subasta, comercio y construcción en la UI               | ✅ Completado |
-| M8   | Bots y simulador de balance                             | ⬜ Pendiente  |
+| M8   | Bots y simulador de balance                             | ✅ Completado |
 | M9   | Pulido                                                  | ⬜ Pendiente  |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M8 — Bots y simulador de balance ✅ (modo autónomo)
+
+**Qué quedó hecho**: bots deterministas en tres dificultades (engine), bots en la sala (lobby
+y server), simulador headless con `pnpm sim` y `docs/balance-report.md`.
+
+**Aceptación**: Medio le gana al Fácil en el 84,3 % de 1000 partidas (test incluido).
+Hallazgos y ajustes propuestos en `REVIEW.md` y en el reporte.
 
 ---
 
