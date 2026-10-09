@@ -297,6 +297,13 @@ export const esAR = {
   // Registro de eventos
   'log.title': 'Lo que va pasando',
   'log.empty': 'Todavía no pasó nada.',
+  'log.filter': 'Filtrar el registro',
+  'log.emptyFilter': 'Nada de esto todavía.',
+  'log.category.all': 'Todo',
+  'log.category.money': 'Plata',
+  'log.category.properties': 'Propiedades',
+  'log.category.cards': 'Cartas',
+  'log.category.turns': 'Turnos',
   'event.turnOrder': 'Orden de juego: {order}',
   'event.turnStarted': 'Turno de {name}',
   'event.round': 'Empieza la ronda {round}',

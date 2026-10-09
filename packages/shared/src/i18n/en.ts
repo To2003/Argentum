@@ -271,6 +271,13 @@ export const en: Dictionary = {
 
   'log.title': "What's happening",
   'log.empty': 'Nothing has happened yet.',
+  'log.filter': 'Filter the log',
+  'log.emptyFilter': 'Nothing like that yet.',
+  'log.category.all': 'All',
+  'log.category.money': 'Money',
+  'log.category.properties': 'Properties',
+  'log.category.cards': 'Cards',
+  'log.category.turns': 'Turns',
   'event.turnOrder': 'Turn order: {order}',
   'event.turnStarted': "{name}'s turn",
   'event.round': 'Round {round} begins',
