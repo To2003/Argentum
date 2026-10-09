@@ -2,15 +2,13 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DEFAULT_RULES, resolveRules, validateGameData } from '@gran-negocio/shared';
 import { createGameServer } from './app.js';
+import { readConfig } from './config.js';
 import { sqliteStore } from './persistence.js';
 
-const PORT = Number(process.env['PORT'] ?? 3001);
-/** Lista separada por comas. */
-const WEB_ORIGIN = process.env['WEB_ORIGIN'] ?? 'http://localhost:5173';
-/** Dónde viven las partidas entre reinicios. */
-const DB_PATH = process.env['DB_PATH'] ?? './data/gran-negocio.db';
-/** Default de la regla por sala `useRealBrands` (SPEC.md §15.2). */
-const USE_REAL_BRANDS = process.env['USE_REAL_BRANDS'] !== 'false';
+// Variables de entorno documentadas en `.env.example`.
+const config = readConfig(process.env);
+const PORT = config.port;
+const DB_PATH = config.dbPath;
 /** Salas sin actividad por un día se borran. */
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
@@ -20,13 +18,14 @@ validateGameData();
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 const server = createGameServer({
-  allowedOrigins: WEB_ORIGIN.split(',').map((origin) => origin.trim()),
+  allowedOrigins: config.allowedOrigins,
   store: sqliteStore(DB_PATH),
-  defaultRules: resolveRules({ useRealBrands: USE_REAL_BRANDS }, DEFAULT_RULES),
+  // Default de la regla por sala `useRealBrands` (SPEC.md §15.2).
+  defaultRules: resolveRules({ useRealBrands: config.useRealBrands }, DEFAULT_RULES),
   // Escenarios de desarrollo (SCENARIOS): nunca en producción.
-  devRoutes: process.env['NODE_ENV'] !== 'production',
+  devRoutes: config.devRoutes,
   // Pausa entre jugadas de los bots (los e2e la achican).
-  botDelayMs: Number(process.env['BOT_DELAY_MS'] ?? 900),
+  botDelayMs: config.botDelayMs,
 });
 
 const restored = server.rooms.restore();
@@ -52,5 +51,9 @@ server.httpServer.on('error', (error: NodeJS.ErrnoException) => {
 });
 
 server.httpServer.listen(PORT, () => {
-  console.log(`server escuchando en http://localhost:${PORT}`);
+  // El puerto real (con PORT=0 lo elige el sistema; lo usan los tests).
+  const address = server.httpServer.address();
+  const port = typeof address === 'object' && address !== null ? address.port : PORT;
+  console.log(`server escuchando en http://localhost:${port}`);
+  if (config.devRoutes) console.log('rutas /dev/* activas (NODE_ENV no es production)');
 });

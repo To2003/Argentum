@@ -11,6 +11,7 @@ import {
 } from '@gran-negocio/shared';
 import { registerHandlers, type IoServer } from './handlers.js';
 import { memoryStore, type Store } from './persistence.js';
+import { isProduction } from './config.js';
 import { isScenario, SCENARIOS } from './dev/scenarios.js';
 import { RoomManager, type Clock } from './rooms.js';
 
@@ -28,7 +29,11 @@ export interface ServerOptions {
   readonly botDelayMs?: number;
   /** Límite de mensajes por socket (por defecto, el de producción). */
   readonly rateLimit?: { readonly capacity: number; readonly perSecond: number };
-  /** Rutas `/dev/*` (escenarios). Nunca en producción. */
+  /**
+   * Rutas `/dev/*` (escenarios). Nunca en producción: con `NODE_ENV=production`
+   * no se montan aunque esto sea `true` (segunda barrera, por si un llamador se
+   * equivoca).
+   */
   readonly devRoutes?: boolean;
 }
 
@@ -88,7 +93,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     res.json({ ok: true, protocol: PROTOCOL_VERSION, tiles: TILE_COUNT, rooms: rooms.size });
   });
 
-  if (options.devRoutes === true) {
+  if (options.devRoutes === true && !isProduction(process.env)) {
     // Crea una sala ya armada para probar un flujo (e2e o a mano).
     app.post('/dev/scenario/:name', (req, res) => {
       const { name } = req.params;
