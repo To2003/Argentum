@@ -5,19 +5,30 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 
 ## Hitos
 
-| Hito | Contenido                                               | Estado        |
-| ---- | ------------------------------------------------------- | ------------- |
-| M0   | Fundaciones: monorepo, TS strict, lint, tests, CI, docs | ✅ Completado |
-| M1   | Datos: tablero, cartas, RulesConfig, zod, i18n          | ✅ Completado |
-| M2   | Engine núcleo                                           | ✅ Completado |
-| M3   | Engine avanzado                                         | ✅ Completado |
-| M4   | Server de juego                                         | ✅ Completado |
-| M5   | Cliente base                                            | ✅ Completado |
-| M6   | Juice y visuales                                        | ✅ Completado |
-| M7   | Subasta, comercio y construcción en la UI               | ✅ Completado |
-| M8   | Bots y simulador de balance                             | ✅ Completado |
-| M9   | Pulido                                                  | ✅ Completado |
-| M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+| Hito | Contenido                                               | Estado                       |
+| ---- | ------------------------------------------------------- | ---------------------------- |
+| M0   | Fundaciones: monorepo, TS strict, lint, tests, CI, docs | ✅ Completado                |
+| M1   | Datos: tablero, cartas, RulesConfig, zod, i18n          | ✅ Completado                |
+| M2   | Engine núcleo                                           | ✅ Completado                |
+| M3   | Engine avanzado                                         | ✅ Completado                |
+| M4   | Server de juego                                         | ✅ Completado                |
+| M5   | Cliente base                                            | ✅ Completado                |
+| M6   | Juice y visuales                                        | ✅ Completado                |
+| M7   | Subasta, comercio y construcción en la UI               | ✅ Completado                |
+| M8   | Bots y simulador de balance                             | ✅ Completado                |
+| M9   | Pulido                                                  | ✅ Completado                |
+| M10  | Deploy y cuentas                                        | 🔶 Deploy listo, sin cuentas |
+
+---
+
+## M10-deploy — Deploy listo, sin cuentas 🔶
+
+Web en Vercel y server en Fly.io, **preparados pero sin desplegar** (no hay credenciales):
+`fly.toml`, Dockerfile, `vercel.json`, `.env.example` y la guía `docs/deploy.md` para Windows 10. Verificado en local con la imagen de Docker y el build de producción. En el camino se
+arregló un hueco de seguridad (el WebSocket aceptaba cualquier origen) y el mínimo de Node.
+
+**Falta de M10**: cuentas y perfiles con Supabase (Google + invitado), estadísticas por
+jugador. Detalle en SPEC §15.13 y `REVIEW.md`.
 
 ---
 

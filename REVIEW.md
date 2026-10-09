@@ -6,37 +6,47 @@ default más conservador y simple.
 
 ## Lo primero que tiene que revisar el humano
 
-1. **Hacer push y mirar el CI.** Desde M3 nada pasó por GitHub: el entorno no tiene
-   credenciales. Hay **unos 70 commits locales** sin publicar, con los tags `m3-done` …
-   `m9-done`. Cada hito se verificó sobre un clon limpio en Linux (install, typecheck, lint,
-   format, cobertura, build, e2e), pero **nunca en Windows**: la matriz del CI es lo primero
-   que lo va a probar. Comando: `git push origin main --tags`.
-2. **ADR 0007: no se usaron Framer Motion, React Three Fiber + Rapier ni Howler**, que nombra
+1. **CI**: el push de M3–M9 (commit `3473649`) pasó el CI **en verde en Ubuntu y en Windows**,
+   check y e2e, el 9 de octubre de 2026. **Falta pushear**:
+   - los commits de M9.1 y M10-deploy;
+   - **los tags**: en GitHub no hay ninguno.
+
+   Comando: `git push origin main --tags`.
+
+2. **Seguridad del socket (encontrado en M10-deploy)**: hasta ahora, cualquier página web podía
+   abrir un WebSocket contra el server desde el navegador de un visitante. La opción `cors` de
+   Socket.IO no cubre WebSocket. Ya está arreglado (`allowRequest`) y tiene test. No había forma
+   de robar sesiones (los tokens viven en el localStorage del dominio propio), pero sí de crear
+   salas o spamear. Conviene saberlo si alguna vez se cambia la configuración del socket.
+3. **Antes del primer deploy, leé `docs/deploy.md`** y cambiá en `fly.toml` el nombre de la app
+   y `WEB_ORIGIN`. Nada se desplegó: no hay credenciales.
+4. **ADR 0007: no se usaron Framer Motion, React Three Fiber + Rapier ni Howler**, que nombra
    el SPEC. En su lugar: CSS, dados en CSS 3D y audio sintetizado con Web Audio. Es la decisión
    que más se aparta del SPEC. Se justificó por peso (~250 kB de JS + ~1,5 MB de wasm) y por los
    60 fps en gama media.
-3. **Reglas decididas sin consultar (M3, tabla "Decisiones de reglas")**. Las que más cambian
+5. **Reglas decididas sin consultar (M3, tabla "Decisiones de reglas")**. Las que más cambian
    la partida:
    - recibir una hipotecada siempre cobra el 10 %;
    - solo se subasta la **última** casa u hotel;
    - un trueque nunca puede dejar a nadie en deuda;
    - lo que se le debía a un quebrado va al banco.
-4. **Cómo juega el piloto automático (M4)**: por timeout rechaza las compras; si estás
+6. **Cómo juega el piloto automático (M4)**: por timeout rechaza las compras; si estás
    desconectado, compra solo si te quedan $500.
-5. **Balance (M8, `docs/balance-report.md`)**:
+7. **Balance (M8, `docs/balance-report.md`)**:
    - en partidas de 4 bots, el 81 % llega al tope de turnos;
    - los subtes rinden más que los grupos de color.
 
    Hay ajustes propuestos, **no activados**.
 
-6. **Probar a mano lo que no se pudo verificar acá**:
+8. **Probar a mano lo que no se pudo verificar acá**:
    - un celular real y Safari/iOS (solo hubo emulación Pixel 7 en Chromium);
+   - el pinch-zoom del tablero en un teléfono de verdad (M9.1: toques emulados por CDP);
    - cómo suena el audio;
    - un lector de pantalla real (NVDA, VoiceOver o TalkBack).
-7. **El chat no se guarda**: un reinicio del server lo pierde (M9). No hay moderación más allá
+9. **El chat no se guarda**: un reinicio del server lo pierde (M9). No hay moderación más allá
    del límite de largo y del rate limit.
-8. **La estética de las ilustraciones** (SVG propios, `assets/README.md`) y los textos con humor
-   rioplatense (cartas, reacciones del chat): conviene que los lea alguien de acá.
+10. **La estética de las ilustraciones** (SVG propios, `assets/README.md`) y los textos con humor
+    rioplatense (cartas, reacciones del chat): conviene que los lea alguien de acá.
 
 ### Cómo jugar una partida de 4 en tu compu
 
@@ -634,3 +644,96 @@ Verifiqué que los tests muerden: con la condición rota a propósito, fallan lo
 - **Escritorio**: Ctrl + rueda sobre el tablero.
 - **Seguridad**: `NODE_ENV=production pnpm --filter @gran-negocio/server start:e2e` y después
   `curl -X POST http://localhost:3001/dev/scenario/build`, que tiene que dar 404.
+
+---
+
+## M10-deploy — Deploy listo (sin cuentas)
+
+Pedido después de M9.1: dejar el deploy preparado, **sin Supabase y sin desplegar** (no hay
+credenciales). Tag `m10-deploy-done`. Las cuentas y perfiles de M10 quedan para otro hito.
+
+### Qué quedó hecho
+
+- **Server en Fly.io** (`fly.toml` en la raíz, pasa `fly config validate`):
+  - región `gru` (São Paulo; Fly no tiene Buenos Aires);
+  - `NODE_ENV=production`;
+  - volumen `gran_negocio_data` en `/data`, con la base SQLite;
+  - health check en `/health`;
+  - una sola máquina siempre prendida;
+  - concurrencia por conexiones.
+- **Dockerfile**:
+  - Node fijado en `24.13.0`, la versión de desarrollo; `node:sqlite` sin flag existe desde
+    22.13.0;
+  - `HEALTHCHECK` para `docker run`.
+- **Web en Vercel** (`apps/web/vercel.json`):
+  - Root Directory `apps/web`;
+  - install filtrado de pnpm (`--filter @gran-negocio/web...`);
+  - reescritura de `/sala/:codigo` y de todo lo demás a `index.html`;
+  - cache inmutable para `/assets/*`.
+- **`.env.example`** documenta todas las variables, con dónde se definen en local y en producción.
+- **`docs/deploy.md`**: guía paso a paso para Windows 10:
+  - instalación de Node, pnpm, flyctl y la CLI de Vercel;
+  - nombres y URLs;
+  - Fly, Vercel (panel o CLI) y cómo conectarlos;
+  - prueba, actualización, backup y problemas comunes.
+- **Apagado ordenado** con SIGTERM/SIGINT: cierra sockets, timers y SQLite. Fly lo manda en cada
+  deploy. Tiene test sobre el proceso real.
+
+### Lo que encontré verificando
+
+| Hallazgo                                                                                                          | Arreglo                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Un origen no permitido abría el WebSocket igual** (probado contra el contenedor)                                | La opción `cors` de Socket.IO solo cubre HTTP. Se agregó `allowRequest`, que filtra el handshake de todo transporte. Tiene test, y verifiqué que falla si se quita el filtro |
+| **`engines` decía `>=22.12`**, pero `node:sqlite` sin flag existe desde 22.13.0: con 22.12 el server no arrancaba | `engines: >=22.13.0`; un test lo controla junto con la versión del Dockerfile                                                                                                |
+| Un `.dockerignore` con `data` habría excluido `packages/shared/data` (tablero y cartas), igual que en M1          | Solo `/data` y `apps/server/data`; un test prohíbe el patrón amplio                                                                                                          |
+| El encabezado de `.env.example` decía "copiá a `.env`", pero el server no lee archivos `.env`                     | Ahora dice dónde se define cada una de verdad                                                                                                                                |
+| Un test de M3 (fuzz de partida avanzada) era inestable: ~9,5 % de las corridas fallaban                           | Ver M9.1, "Cambios a tests de hitos anteriores"                                                                                                                              |
+
+### Verificación (local, sin desplegar)
+
+- **Imagen de Docker**:
+  - `/health`: 200;
+  - health check de Docker: `healthy`;
+  - `POST /dev/scenario/*`: 404;
+  - CORS y socket: solo `WEB_ORIGIN`;
+  - partida creada por socket → `docker restart` (log "SIGTERM: cerrando el server") →
+    "2 sala(s) restaurada(s)" → el jugador vuelve con su token y ve su partida;
+  - `docker stop`: sale con 0;
+  - Node v24.13.0 con `NODE_ENV=production`.
+- **Build de Vercel simulado** sobre una copia limpia: el `installCommand` filtrado de
+  `vercel.json` y `pnpm build` funcionan, con `VITE_SERVER_URL` embebida en el bundle.
+- **Web de producción + contenedor de producción** con Playwright:
+  - deep link `/sala/CÓDIGO` desde un Pixel 7 emulado;
+  - dos jugadores, partida arrancada;
+  - recarga en medio de la partida;
+  - cero errores de consola.
+- **`apps/server/test/deploy.test.ts`** mantiene coherentes `fly.toml`, el Dockerfile,
+  `vercel.json`, `.env.example`, `package.json` y el código.
+
+### Decisiones (M10-deploy)
+
+| Duda                                  | Qué elegí                                                    | Por qué                                                                                                                                                             | Cómo revertirlo                                 |
+| ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Región                                | `gru` (São Paulo)                                            | La más cercana a la Argentina en la lista actual de Fly                                                                                                             | `primary_region` y la región del volumen        |
+| ¿Auto-stop de la máquina?             | No: `auto_stop_machines = "off"`, `min_machines_running = 1` | Las salas y los timers viven en memoria; apagarla corta partidas (aunque se restauran de SQLite)                                                                    | `fly.toml` → `[http_service]`                   |
+| ¿Escalar a varias máquinas?           | No, una sola                                                 | Las salas son de un proceso; varias necesitan sticky sessions + adapter de Redis (ADR 0002)                                                                         | —                                               |
+| `WEB_ORIGIN` en `[env]` o como secret | En `[env]`                                                   | No es secreto; queda versionado y lo controla un test                                                                                                               | `fly secrets set WEB_ORIGIN=…` (pisa a `[env]`) |
+| ¿Usuario no-root en el contenedor?    | Root (como venía)                                            | Los volúmenes de Fly se montan como root; con otro usuario la base no se podría escribir, y eso no se puede probar sin desplegar. La máquina es una microVM aislada | `USER node` + `chown` del volumen al arrancar   |
+| ¿Clientes sin `Origin`?               | Se aceptan                                                   | Los navegadores siempre lo mandan; un cliente que no es un navegador puede inventarlo igual                                                                         | `allowRequest` en `app.ts`                      |
+| Deploys de vista previa de Vercel     | El server los rechaza (otra URL)                             | Conservador: solo la URL de producción; se pueden sumar a `WEB_ORIGIN`                                                                                              | `WEB_ORIGIN` con coma                           |
+| Fly.io vs. Render/Railway             | Fly.io                                                       | Lo pediste; volúmenes persistentes y WebSockets sin configuración extra                                                                                             | Dockerfile sirve igual en otro host             |
+
+### Qué NO se pudo verificar (M10-deploy)
+
+- **El deploy real** en Fly.io y en Vercel (sin credenciales).
+- La reescritura de Vercel en su plataforma: se probó el comportamiento equivalente con
+  `vite preview`, y la sintaxis sale de la documentación de Vercel.
+- **Los comandos de `docs/deploy.md` en un Windows 10 real**: salen de la documentación oficial
+  (octubre de 2026) y de `flyctl --help`.
+- Que `fly deploy` quede con una sola máquina: Fly puede crear dos en el primer deploy. La guía
+  incluye `fly scale count 1`.
+
+### Cómo probarlo a mano (M10-deploy)
+
+- **Imagen local**: ver la sección Deploy del README.
+- **Deploy de verdad**: seguir `docs/deploy.md`. Al final, el paso 5 ("Probar que anda").
