@@ -34,3 +34,11 @@ export {
 export { tradeContentError } from './rules/trade.js';
 export { toPlayerView, type PlayerView, type PublicPlayer } from './view.js';
 export { autopilotAction, DISCONNECTED_BUY_RESERVE, type AutopilotMode } from './bots/autopilot.js';
+export {
+  BOT_DIFFICULTIES,
+  botAction,
+  newBotMemory,
+  valuation,
+  type BotDifficulty,
+  type BotMemory,
+} from './bots/bots.js';
