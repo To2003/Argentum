@@ -21,6 +21,14 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 
 ---
 
+## M9.1 — Seguridad de /dev, pinch-zoom y registro filtrable ✅
+
+Rutas `/dev/*` protegidas en dos capas y con un test que levanta el proceso real en producción;
+pinch-zoom y pan del tablero (los nombres aparecen al acercarse); filtro del registro por
+categoría. Detalle en SPEC §15.12 y `REVIEW.md`.
+
+---
+
 ## M9 — Pulido ✅ (modo autónomo)
 
 **Qué quedó hecho**: estadísticas de fin de partida (engine, por eventos), revancha en la

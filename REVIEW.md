@@ -505,9 +505,9 @@ venía de M5**:
 
 ### Deuda técnica (M9)
 
-- El registro de eventos no se puede filtrar (el SPEC §7.4 lo pide "filtrable").
+- ~~El registro de eventos no se puede filtrar~~ → resuelto en M9.1.
 - En celular, con el tablero entero, las casillas no muestran texto (decisión de M5): se lee
-  tocando la casilla o con "Acercar a mi ficha".
+  tocando la casilla o acercando el tablero (pinch desde M9.1).
 - Sin moderación del chat (palabras, silenciar a alguien).
 - Al cambiar de idioma se reinician las animaciones en curso (por el remontado).
 - El perfil y las estadísticas históricas por jugador son de M10 (no se hizo, como se pidió).
@@ -538,3 +538,93 @@ venía de M5**:
 
   Para la pantalla de partida hace falta una sesión: crear la sala en un perfil de Chrome y
   correr Lighthouse con ese `--user-data-dir` y `--disable-storage-reset`.
+
+---
+
+## M9.1 — Seguridad de /dev, pinch-zoom y registro filtrable
+
+Pedido después de aprobar M3–M9. Tag `m9.1-done`.
+
+### 1. Rutas `/dev/*` en producción
+
+**Cómo está protegido** (tres capas):
+
+1. `apps/server/src/config.ts`: `readConfig(env)` es una función pura. Da `devRoutes: false`
+   cuando `NODE_ENV === 'production'`, y `index.ts` usa solo eso.
+2. `apps/server/src/app.ts`: aunque un llamador pase `devRoutes: true`, `createGameServer` **no**
+   monta `/dev/scenario/:name` si `NODE_ENV=production` (segunda barrera).
+3. El contenedor de producción fija `NODE_ENV=production` (`Dockerfile` y `fly.toml`, punto 4).
+
+**Tests** (`apps/server/test/config.test.ts`):
+
+- `readConfig` con y sin `NODE_ENV=production`;
+- `createGameServer({ devRoutes: true })` con `NODE_ENV=production` responde 404;
+- **de punta a punta**: se levanta el proceso real (`src/index.ts`) con `NODE_ENV=production`, y
+  `POST /dev/scenario/{build,trade,auction}` da 404 mientras `/health` da 200. Sin `NODE_ENV`, el
+  escenario responde 200.
+
+Verifiqué que los tests muerden: con la condición rota a propósito, fallan los tres de seguridad.
+
+**Antes** la decisión vivía en `index.ts` sin test: solo estaba probado `createGameServer` con
+`devRoutes: false`.
+
+### 2. Pinch-zoom y pan del tablero
+
+- `ZoomPan.tsx` con pointer events, sin librerías.
+  - **El zoom cambia el ancho de layout del tablero**, no un `transform`. Así la container query
+    de M5 (que oculta los nombres por debajo de 560 px) ve el tamaño real: **a partir de ~1,5×
+    aparecen los nombres**.
+  - El pinch corrige el scroll para que lo que está entre los dedos no se mueva. La matemática
+    está en `game/zoom.ts`, con tests.
+- Sin zoom, `touch-action: pan-x pan-y`: un dedo scrollea la página como siempre. Con zoom,
+  `touch-action: none`, y el pan de un dedo lo hace el componente.
+- "Acercar a mi ficha" sigue igual (2,2×). "Ver todo el tablero" aparece siempre que hay zoom,
+  también en escritorio, donde Ctrl + rueda o el pinch del trackpad acercan.
+- **e2e en Pixel 7 con toques reales de dos dedos** (CDP), con capturas en `test-results/`:
+  1. pinch hacia afuera: los nombres aparecen;
+  2. pan de un dedo;
+  3. tocar una casilla abre su detalle;
+  4. pinch hacia adentro: vuelve a 1 sin scroll residual.
+
+**Lo que encontré en el camino**:
+
+- **Primero usé `pan-x pan-y` siempre**, para tener el pan nativo con inercia. El e2e mostró que,
+  con el tablero acercado, el navegador toma los dos dedos como su propio pan y cancela los
+  pointer events: el pinch hacia adentro no andaba. De ahí `touch-action: none` con zoom.
+- **Click después de un arrastre**: en una página mínima, Chromium generó un `click` al soltar un
+  arrastre que mueve el scroll por programa. En el tablero real no lo pude reproducir, ni con el
+  arrastre pasando sobre las casillas. Igual dejé una defensa barata: se descarta un `click` que
+  llegue hasta 400 ms después de un arrastre o un pinch. La cubre un test unitario de
+  `ZoomPan`, que falla si se quita la defensa. El e2e no detecta su ausencia, porque el bug no
+  aparece en la app.
+
+### 3. Registro filtrable
+
+- Filtro por **Todo / Plata / Propiedades / Cartas / Turnos** (botones con `aria-pressed`).
+- `game/eventCategory.ts` es un `switch` exhaustivo: si el engine suma un evento, no compila
+  hasta asignarle categoría.
+
+### Decisiones (M9.1)
+
+| Duda                                    | Qué elegí                                                       | Por qué                                                       | Cómo revertirlo               |
+| --------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------- |
+| ¿Dev routes por opt-in (`ENABLE_DEV…`)? | No: apagadas con `NODE_ENV=production`, más una segunda barrera | No rompe `pnpm dev` ni los e2e; el contenedor siempre lo fija | `readConfig` en `config.ts`   |
+| Zoom máximo                             | 3×                                                              | A 3× una casilla mide ~100 px en un Pixel 7: se lee todo      | `MAX_SCALE` en `game/zoom.ts` |
+| Quiebra en el filtro                    | En "Plata"                                                      | Es la consecuencia de no poder pagar                          | `eventCategory.ts`            |
+| Filtro de una o varias categorías       | Una a la vez (o Todo)                                           | Lo más simple; alcanza para "¿cuánto pagué?"                  | `EventLog.tsx`                |
+| Tipos de DOM en los e2e                 | `lib: DOM` en `e2e/tsconfig.json`                               | Lo que va dentro de `page.evaluate` corre en el navegador     | `e2e/tsconfig.json`           |
+
+### Qué NO se pudo verificar (M9.1)
+
+- **Pinch en un celular real** (iOS Safari y Chrome Android): los toques fueron emulados por CDP
+  en Chromium. Safari maneja `touch-action` y los gestos a su manera; es lo primero para probar
+  en un teléfono.
+
+### Cómo probarlo a mano (M9.1)
+
+- **Celular**: `pnpm --filter @gran-negocio/web dev --host` y el server con
+  `WEB_ORIGIN=http://IP:5173` (ver "Cómo jugar una partida de 4"). Abrir una partida,
+  pellizcar el tablero, arrastrar con un dedo y tocar casillas.
+- **Escritorio**: Ctrl + rueda sobre el tablero.
+- **Seguridad**: `NODE_ENV=production pnpm --filter @gran-negocio/server start:e2e` y después
+  `curl -X POST http://localhost:3001/dev/scenario/build`, que tiene que dar 404.

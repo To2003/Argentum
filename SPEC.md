@@ -584,3 +584,8 @@ Decisiones tomadas en modo autónomo (detalle y cómo revertirlas en `REVIEW.md`
 5. **Idioma**: es-AR por defecto; inglés desde la portada o los ajustes, guardado en el navegador. `<html lang>` sigue al idioma.
 6. **Accesibilidad**: checklist y resultados de Lighthouse en `docs/accessibility.md`. Cada grupo de color tiene además un patrón.
 7. **Tutorial**: cinco pasos cortos desde la portada ("Cómo se juega"); no se abre solo.
+
+### 15.12 Seguridad de /dev, zoom del tablero y registro filtrable (M9.1)
+1. **Rutas `/dev/*`** (escenarios): solo fuera de producción. `readConfig(env)` las apaga con `NODE_ENV=production` y `createGameServer` se niega a montarlas en producción aunque se lo pidan. Un test levanta el proceso real con `NODE_ENV=production` y verifica el 404.
+2. **Zoom del tablero** (§4.1, §7.7): pinch con pointer events (sin librerías), de 1× a 3×; el zoom cambia el ancho de layout, así que los nombres de las casillas aparecen al acercarse (~1,5× en un celular). Pan de un dedo con zoom; Ctrl + rueda en escritorio; "Acercar a mi ficha" lleva a 2,2×.
+3. **Registro filtrable** (§7.4): Todo / Plata / Propiedades / Cartas / Turnos, uno a la vez. Todo evento del engine tiene categoría (chequeado al compilar).

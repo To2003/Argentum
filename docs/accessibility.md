@@ -44,6 +44,8 @@ Cómo repetirlo: ver "Qué NO se pudo verificar (M9)" en REVIEW.md.
   animados (M6).
 - 🔶 **Lector de pantalla real**: no se probó con NVDA/VoiceOver/TalkBack; solo el árbol de
   accesibilidad (Testing Library por rol y nombre, Lighthouse/axe).
-- ⬜ **Tamaño de letra en el tablero en celular**: en 412 px las casillas no muestran texto (se toca
-  la casilla para ver el detalle, decisión de M5). Lighthouse (SEO, que no se mide acá) marca 26 %
-  de texto legible por eso.
+- 🔶 **Tamaño de letra en el tablero en celular**: con el tablero entero (412 px) las casillas no
+  muestran texto (decisión de M5); desde M9.1 se leen pellizcando el tablero (aparecen a ~1,5×) o
+  con "Acercar a mi ficha", y tocando una casilla se ve su detalle. Lighthouse (SEO, que no se
+  mide acá) sigue marcando 26 % de texto legible en la vista entera.
+- ✅ **Registro filtrable** (M9.1): botones con `aria-pressed` y nombre accesible del grupo.
