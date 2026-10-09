@@ -285,4 +285,26 @@ describe('server de juego por sockets (M4)', () => {
     }
     expect((await update).view.viewerId).toBeNull();
   });
+
+  it('SEGURIDAD: un navegador desde otro origen no puede abrir el socket (WebSocket incluido)', async () => {
+    const url = await start();
+    const connectWith = (origin: string) =>
+      new Promise<'ok' | 'rejected'>((resolve) => {
+        const socket = connect(url, {
+          transports: ['websocket'],
+          forceNew: true,
+          reconnection: false,
+          extraHeaders: { origin },
+        });
+        clients.push(socket);
+        socket.on('connect', () => {
+          resolve('ok');
+        });
+        socket.on('connect_error', () => {
+          resolve('rejected');
+        });
+      });
+    expect(await connectWith('https://malicioso.example')).toBe('rejected');
+    expect(await connectWith('http://localhost:5173')).toBe('ok');
+  });
 });

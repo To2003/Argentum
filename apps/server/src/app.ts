@@ -121,6 +121,14 @@ export function createGameServer(options: ServerOptions): GameServer {
         callback(null, isAllowed(origin));
       },
     },
+    // `cors` solo cubre las peticiones HTTP (polling): la conexión WebSocket no
+    // pasa por CORS en el navegador. Esto filtra el handshake de todo
+    // transporte, así otra página no puede abrir un socket desde el navegador
+    // de un visitante. Sin Origin (clientes que no son un navegador) se acepta:
+    // ahí el origen se puede inventar igual y no protege nada.
+    allowRequest: (req, callback) => {
+      callback(null, isAllowed(req.headers.origin));
+    },
     // Ningún mensaje legítimo se acerca a esto.
     maxHttpBufferSize: 64 * 1024,
   });
