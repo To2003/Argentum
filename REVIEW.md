@@ -7,7 +7,7 @@ default más conservador y simple.
 ## Lo primero que tiene que revisar el humano
 
 1. **Hacer push y mirar el CI.** Desde M3 nada pasó por GitHub: el entorno no tiene
-   credenciales. Hay **más de 70 commits locales** sin publicar, con los tags `m3-done` …
+   credenciales. Hay **unos 70 commits locales** sin publicar, con los tags `m3-done` …
    `m9-done`. Cada hito se verificó sobre un clon limpio en Linux (install, typecheck, lint,
    format, cobertura, build, e2e), pero **nunca en Windows**: la matriz del CI es lo primero
    que lo va a probar. Comando: `git push origin main --tags`.
