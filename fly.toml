@@ -1,0 +1,56 @@
+# Server de juego en Fly.io (docs/deploy.md). La web va en Vercel.
+#
+# Está en la raíz del repo porque el contexto de build tiene que ser el repo
+# entero (el Dockerfile copia packages/shared y packages/engine).
+#
+# Cambiá `app` por el nombre de tu app (sale en la URL: https://<app>.fly.dev)
+# y WEB_ORIGIN por la URL de la web en Vercel.
+
+app = "gran-negocio-server"
+# São Paulo: la región más cercana a la Argentina (Fly no tiene Buenos Aires).
+primary_region = "gru"
+
+[build]
+  dockerfile = "apps/server/Dockerfile"
+
+[env]
+  # Producción: apaga las rutas /dev/* (apps/server/src/config.ts).
+  NODE_ENV = "production"
+  PORT = "3001"
+  # Tiene que estar dentro del volumen de [mounts], o las partidas se pierden.
+  DB_PATH = "/data/gran-negocio.db"
+  # La URL exacta de la web (sin barra final). Varias, separadas por coma.
+  WEB_ORIGIN = "https://gran-negocio.vercel.app"
+  USE_REAL_BRANDS = "true"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  # Las salas viven en la memoria de UNA máquina (y en su volumen): no se
+  # apaga sola ni se escala a más de una (`fly scale count 1`).
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    # WebSockets: cada jugador es una conexión larga.
+    type = "connections"
+    soft_limit = 500
+    hard_limit = 1000
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+# El volumen se crea una vez: fly volumes create gran_negocio_data --region gru --size 1
+[mounts]
+  source = "gran_negocio_data"
+  destination = "/data"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

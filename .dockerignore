@@ -7,3 +7,12 @@ node_modules
 coverage
 .git
 *.db
+# Bases SQLite locales. NO usar un patrón amplio: packages/shared/data tiene
+# board.json y cards.json (lección de M1 con el .gitignore).
+/data
+apps/server/data
+test-results
+playwright-report
+**/.env
+**/.env.*
+!.env.example
