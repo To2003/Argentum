@@ -348,6 +348,17 @@ a trocar.
 | -------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------- |
 | `server/test/rooms.test.ts` (M4) | El asiento público incluye `bot: null`; el `manager()` de prueba pasa `botDelayMs` | Campo y dependencia nuevos de M8. |
 
+### Proceso (M8)
+
+- La verificación sobre un clon limpio frenó el cierre: los bots bajaban la cobertura de ramas
+  del engine a 86,8 %. Se escribieron tests unitarios de cada decisión de bot y aparecieron
+  **dos problemas reales**: (1) para comprar la propiedad que le completaba un grupo, el bot
+  hipotecaba otra del mismo grupo (que después no podía construir); (2) el bot Fácil pujaba
+  por la última casa aunque nunca construye. Ambos arreglados. El reporte de balance se
+  regeneró después de los arreglos.
+- El script de verificación ahora falla por código de salida en cada paso (antes un fallo de
+  cobertura se veía pero no frenaba).
+
 ### Qué NO se pudo verificar (M8)
 
 - Que el bot Difícil "se sienta" difícil para una persona: está medido contra otros bots, no
