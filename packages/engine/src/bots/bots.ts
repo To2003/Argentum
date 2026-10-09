@@ -5,8 +5,11 @@ import {
   tileAt,
   type ColorGroup,
   type OwnableTile,
+  type PropertyTile,
 } from '@gran-negocio/shared';
 import { legalActions } from '../legal.js';
+import { buildingTarget } from '../rules/auction.js';
+import { ownableAt, ownsWholeGroup } from '../rules/checks.js';
 import { tradeContentError } from '../rules/trade.js';
 import type { Action, PlayerId, ReadonlyGameState, TileIndex, TradeBundle } from '../types.js';
 import { actorOf } from '../validate.js';
@@ -81,11 +84,20 @@ const BUILD_ORDER: readonly ColorGroup[] = [
   'brown',
 ];
 
+/** Una propiedad de color (las construcciones y los grupos siempre lo son). */
+const propertyOf = (index: TileIndex): PropertyTile => {
+  const tile = ownableAt(index);
+  if (tile.kind !== 'property') throw new Error(`la casilla ${index} no es de un grupo`);
+  return tile;
+};
+
 const cashOf = (state: ReadonlyGameState, playerId: PlayerId) => state.players[playerId]?.cash ?? 0;
 
 const ownerOf = (state: ReadonlyGameState, tile: TileIndex) => state.properties[tile]?.ownerId;
 
-const find = (legal: readonly Action[], type: Action['type']) => legal.find((a) => a.type === type);
+/** La acción legal de ese tipo, o null. */
+const find = (legal: readonly Action[], type: Action['type']): Action | null =>
+  legal.find((a) => a.type === type) ?? null;
 
 /** Las demás propiedades del grupo (o de la misma clase, para subtes y servicios). */
 function siblings(tile: OwnableTile): readonly TileIndex[] {
@@ -168,15 +180,14 @@ function tradeCompletesGroupFor(
 
 function respondToTrade(
   state: ReadonlyGameState,
+  trade: NonNullable<ReadonlyGameState['trade']>,
   playerId: PlayerId,
   difficulty: BotDifficulty,
   legal: readonly Action[],
 ): Action | null {
-  const { trade } = state;
-  if (trade === null) return null;
-  const reject = find(legal, 'rejectTrade') ?? null;
+  const reject = find(legal, 'rejectTrade');
   const accept = find(legal, 'acceptTrade');
-  if (difficulty === 'easy' || accept === undefined) return reject;
+  if (difficulty === 'easy' || accept === null) return reject;
   const gets = bundleValue(state, playerId, trade.offer, difficulty);
   const gives = bundleValue(state, playerId, trade.request, difficulty);
   // Darle a otro un grupo completo cuesta caro: solo si gana uno también.
@@ -195,15 +206,23 @@ function auctionMove(
 ): Action | null {
   const { phase } = state;
   if (phase.kind !== 'auction' || phase.highBidder === playerId) return null;
-  const pass = find(legal, 'passAuction') ?? null;
+  const pass = find(legal, 'passAuction');
   const bid = legal.find((action) => action.type === 'bid');
   if (bid?.type !== 'bid') return pass;
   const profile = PROFILES[difficulty];
-  const worth =
-    phase.lot.kind === 'property'
-      ? valuation(state, playerId, phase.lot.tile, difficulty) * profile.auctionFactor
-      : // La última casa: vale su precio más lo que niega a los rivales.
-        (tileAt(phase.lot.tile).kind === 'property' ? 1 : 0) * 100 * profile.auctionFactor * 1.5;
+  let worth: number;
+  if (phase.lot.kind === 'property') {
+    worth = valuation(state, playerId, phase.lot.tile, difficulty) * profile.auctionFactor;
+  } else {
+    // La última casa: vale su precio de lista y un poco más por lo que les
+    // niega a los rivales. Un bot que no construye no la quiere.
+    const target = buildingTarget(state, phase.lot, playerId);
+    const house = target === null ? null : tileAt(target);
+    worth =
+      profile.buildReserve === Infinity || house?.kind !== 'property'
+        ? 0
+        : house.houseCost * 1.5 * profile.auctionFactor;
+  }
   const affordable = cashOf(state, playerId) - bid.amount >= profile.reserve;
   return bid.amount <= worth && affordable ? bid : pass;
 }
@@ -215,52 +234,53 @@ function debtMove(
   legal: readonly Action[],
 ): Action | null {
   const pay = find(legal, 'payDebt');
-  if (pay !== undefined) return pay;
+  if (pay !== null) return pay;
   const sell = find(legal, 'sellBuilding') ?? find(legal, 'sellAllBuildings');
-  if (sell !== undefined) return sell;
+  if (sell !== null) return sell;
   const mortgages = legal.filter(
     (action): action is Extract<Action, { type: 'mortgage' }> => action.type === 'mortgage',
   );
   if (mortgages.length > 0) {
     // Primero lo que no es parte de un grupo completo, y lo más barato.
     const sorted = [...mortgages].sort((a, b) => {
-      const ta = tileAt(a.tile);
-      const tb = tileAt(b.tile);
       const ma = completesGroup(state, playerId, a.tile) ? 1 : 0;
       const mb = completesGroup(state, playerId, b.tile) ? 1 : 0;
-      return ma - mb || (isOwnable(ta) ? ta.price : 0) - (isOwnable(tb) ? tb.price : 0);
+      return ma - mb || ownableAt(a.tile).price - ownableAt(b.tile).price;
     });
     return sorted[0] ?? null;
   }
-  return find(legal, 'declareBankruptcy') ?? null;
+  return find(legal, 'declareBankruptcy');
 }
 
 function purchaseMove(
   state: ReadonlyGameState,
+  index: TileIndex,
   playerId: PlayerId,
   difficulty: BotDifficulty,
   legal: readonly Action[],
 ): Action | null {
-  const { phase } = state;
-  if (phase.kind !== 'awaitingPurchase') return null;
-  const tile = tileAt(phase.tile);
-  if (!isOwnable(tile)) return find(legal, 'declineProperty') ?? null;
+  const tile = ownableAt(index);
   const profile = PROFILES[difficulty];
   const cash = cashOf(state, playerId);
   const key =
-    completesGroup(state, playerId, phase.tile) ||
-    valuation(state, playerId, phase.tile, difficulty) >= tile.price * 1.4;
+    completesGroup(state, playerId, index) ||
+    valuation(state, playerId, index, difficulty) >= tile.price * 1.4;
   const wants = difficulty === 'easy' ? true : cash - tile.price >= profile.reserve || key;
   const buy = find(legal, 'buyProperty');
-  if (wants && buy !== undefined) return buy;
+  if (wants && buy !== null) return buy;
   // Para una clave que no alcanza: hipotecar algo suelto y volver a intentar.
+  // Nunca del grupo que está completando ni de un grupo que ya tiene entero.
   if (wants && key && difficulty !== 'easy') {
-    const spare = legal.find(
-      (action) => action.type === 'mortgage' && !completesGroup(state, playerId, action.tile),
-    );
+    const targetGroup = tile.kind === 'property' ? tile.group : null;
+    const spare = legal.find((action) => {
+      if (action.type !== 'mortgage') return false;
+      const candidate = tileAt(action.tile);
+      if (candidate.kind !== 'property') return true;
+      return candidate.group !== targetGroup && !ownsWholeGroup(state, playerId, candidate.group);
+    });
     if (spare !== undefined) return spare;
   }
-  return find(legal, 'declineProperty') ?? null;
+  return find(legal, 'declineProperty');
 }
 
 function jailMove(
@@ -269,7 +289,7 @@ function jailMove(
   difficulty: BotDifficulty,
   legal: readonly Action[],
 ): Action | null {
-  const roll = find(legal, 'rollDice') ?? null;
+  const roll = find(legal, 'rollDice');
   const card = find(legal, 'useJailCard');
   const pay = find(legal, 'payJailFine');
   // Mientras quedan propiedades libres conviene salir a comprar; tarde, la
@@ -278,7 +298,7 @@ function jailMove(
     (tile) => isOwnable(tile) && ownerOf(state, tile.index) === undefined,
   ).length;
   const early = free > 8;
-  if (difficulty === 'easy') return cashOf(state, playerId) > 300 && pay !== undefined ? pay : roll;
+  if (difficulty === 'easy') return cashOf(state, playerId) > 300 && pay !== null ? pay : roll;
   if (early) return card ?? pay ?? roll;
   return roll;
 }
@@ -305,16 +325,14 @@ function manage(
   );
   if (builds.length > 0) {
     const ranked = [...builds].sort((a, b) => {
-      const ta = tileAt(a.tile);
-      const tb = tileAt(b.tile);
-      if (ta.kind !== 'property' || tb.kind !== 'property') return 0;
+      const ta = propertyOf(a.tile);
+      const tb = propertyOf(b.tile);
       return difficulty === 'hard'
         ? BUILD_ORDER.indexOf(ta.group) - BUILD_ORDER.indexOf(tb.group)
         : ta.houseCost - tb.houseCost;
     });
     for (const build of ranked) {
-      const tile = tileAt(build.tile);
-      if (tile.kind === 'property' && cash - tile.houseCost >= profile.buildReserve) return build;
+      if (cash - propertyOf(build.tile).houseCost >= profile.buildReserve) return build;
     }
   }
 
@@ -341,13 +359,11 @@ function tradeProposal(
   for (const group of BUILD_ORDER) {
     const tiles = GROUP_TILES[group];
     const missing = tiles.filter((i) => ownerOf(state, i) !== playerId);
-    if (missing.length !== 1) continue;
     const [target] = missing;
-    if (target === undefined) continue;
+    if (missing.length !== 1 || target === undefined) continue;
     const owner = ownerOf(state, target);
-    if (owner === undefined || owner === playerId) continue;
-    const tile = tileAt(target);
-    if (!isOwnable(tile)) continue;
+    if (owner === undefined) continue;
+    const tile = propertyOf(target);
     const offerCash = Math.min(cash - PROFILES[difficulty].reserve, Math.round(tile.price * 1.6));
     if (offerCash < tile.price) continue;
     const offer: TradeBundle = { cash: offerCash, properties: [], jailFreeCards: [] };
@@ -374,7 +390,7 @@ export function botAction(
   if (phase.kind === 'gameOver') return null;
 
   if (state.trade?.to === playerId && phase.kind !== 'auction') {
-    const response = respondToTrade(state, playerId, difficulty, legal);
+    const response = respondToTrade(state, state.trade, playerId, difficulty, legal);
     if (response !== null) return response;
   }
   if (phase.kind === 'auction') return auctionMove(state, playerId, difficulty, legal);
@@ -384,15 +400,15 @@ export function botAction(
     case 'inDebt':
       return debtMove(state, playerId, legal);
     case 'awaitingPurchase':
-      return purchaseMove(state, playerId, difficulty, legal);
+      return purchaseMove(state, phase.tile, playerId, difficulty, legal);
     case 'jailDecision':
       return (
         manage(state, playerId, difficulty, memory, legal) ??
         jailMove(state, playerId, difficulty, legal)
       );
     case 'waitingRoll':
-      return manage(state, playerId, difficulty, memory, legal) ?? find(legal, 'rollDice') ?? null;
+      return manage(state, playerId, difficulty, memory, legal) ?? find(legal, 'rollDice');
     case 'postRoll':
-      return manage(state, playerId, difficulty, memory, legal) ?? find(legal, 'endTurn') ?? null;
+      return manage(state, playerId, difficulty, memory, legal) ?? find(legal, 'endTurn');
   }
 }
