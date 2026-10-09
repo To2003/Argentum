@@ -57,3 +57,28 @@ server.httpServer.listen(PORT, () => {
   console.log(`server escuchando en http://localhost:${port}`);
   if (config.devRoutes) console.log('rutas /dev/* activas (NODE_ENV no es production)');
 });
+
+// Apagado ordenado (cada deploy en Fly.io manda SIGTERM): cerrar sockets,
+// timers y la base SQLite antes de salir. Las partidas ya están guardadas
+// acción por acción; esto evita cortar una escritura a la mitad.
+let closing = false;
+const shutdown = (signal: string) => {
+  if (closing) return;
+  closing = true;
+  console.log(`${signal}: cerrando el server`);
+  const force = setTimeout(() => process.exit(1), 10_000);
+  force.unref();
+  server
+    .close()
+    .then(() => process.exit(0))
+    .catch((error: unknown) => {
+      console.error(error);
+      process.exit(1);
+    });
+};
+process.on('SIGTERM', () => {
+  shutdown('SIGTERM');
+});
+process.on('SIGINT', () => {
+  shutdown('SIGINT');
+});

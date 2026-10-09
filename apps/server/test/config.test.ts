@@ -115,6 +115,30 @@ describe('SEGURIDAD: el proceso real del server', () => {
     }
   }, 30_000);
 
+  // Fly.io manda SIGTERM en cada deploy: el server cierra la base y sale con 0.
+  // (Windows no tiene señales POSIX: ahí se saltea.)
+  it.skipIf(process.platform === 'win32')(
+    'con SIGTERM cierra ordenado y sale con 0',
+    async () => {
+      await boot('production');
+      const child = children.at(-1);
+      if (child === undefined) throw new Error('sin proceso');
+      let output = '';
+      child.stdout?.on('data', (chunk: Buffer) => {
+        output += chunk.toString();
+      });
+      const exit = new Promise<number | null>((resolve) => {
+        child.on('exit', (code) => {
+          resolve(code);
+        });
+      });
+      child.kill('SIGTERM');
+      expect(await exit).toBe(0);
+      expect(output).toContain('SIGTERM: cerrando el server');
+    },
+    30_000,
+  );
+
   it('sin NODE_ENV (desarrollo), los escenarios existen', async () => {
     const url = await boot(undefined);
     const response = await fetch(`${url}/dev/scenario/build`, { method: 'POST' });
