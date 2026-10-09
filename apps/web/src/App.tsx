@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react';
+import { Fragment, lazy, Suspense } from 'react';
 import { Route, Routes, useSearchParams } from 'react-router';
 import { ErrorBanner } from './components/ErrorBanner.js';
+import { useLocale } from './i18n.js';
 import { Landing } from './screens/Landing.js';
 import { NotFound } from './screens/NotFound.js';
 
@@ -16,6 +17,8 @@ const HotSeat = import.meta.env.DEV ? lazy(() => import('./debug/HotSeat.js')) :
 
 export function App() {
   const [params] = useSearchParams();
+  // Cambiar el idioma vuelve a montar todo con los textos nuevos (el estado vive en los stores).
+  const locale = useLocale((state) => state.locale);
   if (HotSeat !== null && params.get('debug') === '1') {
     return (
       <Suspense fallback={null}>
@@ -24,7 +27,7 @@ export function App() {
     );
   }
   return (
-    <>
+    <Fragment key={locale}>
       <ErrorBanner />
       <Routes>
         <Route path="/" element={<Landing />} />
@@ -38,6 +41,6 @@ export function App() {
         />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </>
+    </Fragment>
   );
 }

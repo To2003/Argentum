@@ -2,6 +2,7 @@ import { useSoundSettings } from '../audio/settings.js';
 import { syncMusic } from '../audio/synth.js';
 import { t } from '../i18n.js';
 import { BOARD_THEMES, MODES, useLook } from '../look.js';
+import { LanguagePicker } from './LanguagePicker.js';
 import { Dialog } from './ui.js';
 
 /** Ajustes (SPEC.md §7.1, §7.6): sonido, tema del tablero y colores de la app. */
@@ -10,6 +11,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const look = useLook();
   return (
     <Dialog title={t('settings.open')} onClose={onClose}>
+      <fieldset className="mb-5">
+        <legend className="mb-2 font-display text-lg font-extrabold">
+          {t('settings.language')}
+        </legend>
+        <LanguagePicker />
+      </fieldset>
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-2 font-display text-lg font-extrabold">{t('settings.sound')}</legend>
         <label className="flex items-center gap-2">
