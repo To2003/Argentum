@@ -12,6 +12,7 @@ import { rateLimiter } from './rateLimit.js';
 import type { Clock, Room, RoomManager } from './rooms.js';
 import {
   AddBotSchema,
+  ChatSchema,
   CreateRoomSchema,
   RemoveBotSchema,
   IntentSchema,
@@ -20,6 +21,7 @@ import {
   SetReadySchema,
   SetRulesSchema,
   SetTokenSchema,
+  WatchSchema,
 } from './schema.js';
 
 export type IoServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -29,6 +31,8 @@ type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 interface SocketData {
   code: string | null;
   playerId: string | null;
+  /** Sala que mira como espectador (sin asiento), si mira una. */
+  watching: string | null;
 }
 
 /** Mensajes por socket: 30 de golpe y 10 por segundo sostenidos (SPEC.md §8). */
@@ -57,28 +61,44 @@ export function registerHandlers(
   /** Los sockets de cada asiento: `${code}:${playerId}` (un jugador puede tener varias pestañas). */
   const sockets = new Map<string, Set<GameSocket>>();
   const keyOf = (code: string, playerId: string) => `${code}:${playerId}`;
+  /** Los espectadores de cada sala (M9): reciben la vista sin viewer. */
+  const watchers = new Map<string, Set<GameSocket>>();
 
-  const sendSnapshot = (socket: GameSocket, room: Room, playerId: string) => {
+  /** Las estadísticas viajan solo al final: durante la partida no hacen falta. */
+  const statsOf = (room: Room) => (room.state?.phase.kind === 'gameOver' ? room.stats : null);
+
+  const sendSnapshot = (socket: GameSocket, room: Room, playerId: string | null) => {
     const view = rooms.view(room, playerId);
     if (view === null) return;
-    socket.emit('game:snapshot', { seq: room.log.length, view, timers: rooms.timersOf(room) });
+    socket.emit('game:snapshot', {
+      seq: room.log.length,
+      view,
+      timers: rooms.timersOf(room),
+      stats: statsOf(room),
+    });
   };
 
   rooms.onChange(({ room, events, game }) => {
     io.to(room.code).emit('room:state', rooms.publicState(room));
     if (!game) return;
     const timers = rooms.timersOf(room);
+    const stats = statsOf(room);
+    const seq = room.log.length;
     for (const seat of room.seats) {
       const view = rooms.view(room, seat.playerId);
       if (view === null) continue;
       for (const socket of sockets.get(keyOf(room.code, seat.playerId)) ?? []) {
-        socket.emit('game:update', { seq: room.log.length, view, events, timers });
+        socket.emit('game:update', { seq, view, events, timers, stats });
       }
     }
+    const watching = watchers.get(room.code);
+    const view = rooms.view(room, null);
+    if (watching === undefined || view === null) return;
+    for (const socket of watching) socket.emit('game:update', { seq, view, events, timers, stats });
   });
 
   io.on('connection', (socket: GameSocket) => {
-    const data: SocketData = { code: null, playerId: null };
+    const data: SocketData = { code: null, playerId: null, watching: null };
     const limiter = rateLimiter(rate.capacity, rate.perSecond, () => clock.now());
 
     const attach = (room: Room, playerId: string) => {
@@ -93,9 +113,19 @@ export function registerHandlers(
       rooms.setConnected(room, playerId, true);
       socket.emit('room:state', rooms.publicState(room));
       sendSnapshot(socket, room, playerId);
+      socket.emit('chat:history', room.chat);
+    };
+
+    const unwatch = () => {
+      if (data.watching === null) return;
+      watchers.get(data.watching)?.delete(socket);
+      if (watchers.get(data.watching)?.size === 0) watchers.delete(data.watching);
+      void socket.leave(data.watching);
+      data.watching = null;
     };
 
     const detach = () => {
+      unwatch();
       if (data.code === null || data.playerId === null) return;
       const key = keyOf(data.code, data.playerId);
       const set = sockets.get(key);
@@ -188,6 +218,55 @@ export function registerHandlers(
       if (me === null) return;
       detach();
       rooms.leave(me.room, me.playerId);
+      reply(ack, { ok: true });
+    });
+
+    socket.on('room:watch', (payload, ack) => {
+      const input = guard(WatchSchema, payload, ack);
+      if (input === null) return;
+      const room = rooms.get(input.code);
+      if (room === undefined) {
+        reply(ack, failure('ROOM_NOT_FOUND'));
+        return;
+      }
+      // En el lobby no hay nada que mirar: se entra con un asiento.
+      if (room.status === 'lobby') {
+        reply(ack, failure('GAME_NOT_STARTED'));
+        return;
+      }
+      detach();
+      data.watching = room.code;
+      const set = watchers.get(room.code) ?? new Set<GameSocket>();
+      set.add(socket);
+      watchers.set(room.code, set);
+      void socket.join(room.code);
+      socket.emit('room:state', rooms.publicState(room));
+      sendSnapshot(socket, room, null);
+      socket.emit('chat:history', room.chat);
+      reply(ack, { ok: true });
+    });
+
+    socket.on('room:rematch', (ack) => {
+      if (!limiter.take()) {
+        reply(ack, failure('RATE_LIMITED'));
+        return;
+      }
+      const me = current(ack);
+      if (me === null) return;
+      const result = rooms.rematch(me.room, me.playerId);
+      reply(ack, result.ok ? { ok: true } : failure(result.error));
+    });
+
+    socket.on('chat:send', (payload, ack) => {
+      const input = guard(ChatSchema, payload, ack);
+      const me = input === null ? null : current(ack);
+      if (input === null || me === null) return;
+      const result = rooms.chat(me.room, me.playerId, input);
+      if (!result.ok) {
+        reply(ack, failure(result.error));
+        return;
+      }
+      io.to(me.room.code).emit('chat:message', result.value);
       reply(ack, { ok: true });
     });
 

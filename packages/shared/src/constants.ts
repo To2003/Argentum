@@ -36,3 +36,16 @@ export const COLOR_GROUPS = [
   'green',
   'darkBlue',
 ] as const;
+
+/**
+ * Reacciones rápidas del chat (SPEC.md §7.4.3). El texto de cada una sale de
+ * i18n (`emote.<id>`); por la red viaja solo el id.
+ */
+export const EMOTES = ['bajon', 'dale', 'paga', 'genio', 'suerte', 'jaja'] as const;
+export type EmoteId = (typeof EMOTES)[number];
+
+/** Largo máximo de un mensaje de chat. */
+export const CHAT_MAX_LENGTH = 200;
+
+/** Cuántos mensajes de chat guarda cada sala (y recibe quien entra). */
+export const CHAT_HISTORY = 50;

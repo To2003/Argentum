@@ -3,7 +3,14 @@ import type { Action, PlayerView } from '@gran-negocio/engine';
 import { io as connect, type Socket } from 'socket.io-client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createGameServer, type GameServer } from '../src/app.js';
-import type { Ack, GameSnapshot, GameUpdate, RoomState, Session } from '../src/protocol.js';
+import type {
+  Ack,
+  ChatMessage,
+  GameSnapshot,
+  GameUpdate,
+  RoomState,
+  Session,
+} from '../src/protocol.js';
 
 let server: GameServer | null = null;
 const clients: Socket[] = [];
@@ -213,5 +220,69 @@ describe('server de juego por sockets (M4)', () => {
       Array.from({ length: 40 }, () => send(socket, 'room:join', { code: 'ABCDEF', name: 'x' })),
     );
     expect(replies.filter((r) => !r.ok && r.error === 'RATE_LIMITED').length).toBeGreaterThan(0);
+  });
+
+  it('espectadores y chat (M9): miran sin asiento, leen el chat y no pueden escribir', async () => {
+    const url = await start();
+    const host = client(url);
+    const created = await send<{ session: Session }>(host, 'room:create', { name: 'Ana' });
+    if (!created.ok) throw new Error(created.error);
+    const { code } = created.session;
+
+    const watcher = client(url);
+    expect(await send(watcher, 'room:watch', { code })).toEqual({
+      ok: false,
+      error: 'GAME_NOT_STARTED',
+    });
+    expect(await send(watcher, 'room:watch', { code: 'ZZZZZZ' })).toEqual({
+      ok: false,
+      error: 'ROOM_NOT_FOUND',
+    });
+
+    expect((await send(host, 'lobby:addBot', { difficulty: 'easy' })).ok).toBe(true);
+    expect(await send(host, 'chat:send', { text: '  Hola,\u0007 che  ' })).toEqual({ ok: true });
+    expect(await send(host, 'chat:send', { emote: 'nada' })).toEqual({
+      ok: false,
+      error: 'BAD_PAYLOAD',
+    });
+    expect((await send(host, 'lobby:start')).ok).toBe(true);
+
+    const history = new Promise<readonly ChatMessage[]>((resolve) => {
+      watcher.once('chat:history', resolve);
+    });
+    const snapshot = new Promise<GameSnapshot>((resolve) => {
+      watcher.once('game:snapshot', resolve);
+    });
+    expect(await send(watcher, 'room:watch', { code: code.toLowerCase() })).toEqual({ ok: true });
+    expect((await history).map((message) => message.text)).toEqual(['Hola,  che']);
+    const seen = await snapshot;
+    expect(seen.view.viewerId).toBeNull();
+    expect(seen.view.legal).toEqual([]);
+    expect(seen.stats).toBeNull();
+
+    const message = new Promise<ChatMessage>((resolve) => {
+      watcher.once('chat:message', resolve);
+    });
+    expect(await send(host, 'chat:send', { emote: 'dale' })).toEqual({ ok: true });
+    expect(await message).toMatchObject({ name: 'Ana', emote: 'dale', text: null });
+    // El espectador no tiene asiento: no escribe, no juega.
+    expect(await send(watcher, 'chat:send', { text: 'hola' })).toEqual({
+      ok: false,
+      error: 'NO_SESSION',
+    });
+    expect(await send(watcher, 'room:rematch')).toEqual({ ok: false, error: 'NO_SESSION' });
+    // Y recibe las actualizaciones de la partida: el bot juega solo o, si
+    // empieza Ana, ella tira.
+    const update = new Promise<GameUpdate>((resolve) => {
+      watcher.once('game:update', resolve);
+    });
+    if (seen.view.currentPlayerId === created.session.playerId) {
+      await send(host, 'game:intent', {
+        actionId: 'x1',
+        expectedVersion: seen.view.version,
+        action: { type: 'rollDice' },
+      });
+    }
+    expect((await update).view.viewerId).toBeNull();
   });
 });

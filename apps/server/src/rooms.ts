@@ -8,6 +8,9 @@ import {
   type BotDifficulty,
   type BotMemory,
   createGame,
+  emptyStats,
+  recordStats,
+  type GameStats,
   SYSTEM_ACTOR,
   toPlayerView,
   type Action,
@@ -17,6 +20,8 @@ import {
   type PlayerView,
 } from '@gran-negocio/engine';
 import {
+  CHAT_HISTORY,
+  type EmoteId,
   MIN_PLAYERS,
   resolveRules,
   TOKEN_IDS,
@@ -24,7 +29,14 @@ import {
   type RulesOverrides,
 } from '@gran-negocio/shared';
 import type { LoggedAction, Store, StoredRoom } from './persistence.js';
-import type { PublicSeat, RoomState, RoomStatus, ServerError, TimerState } from './protocol.js';
+import type {
+  ChatMessage,
+  PublicSeat,
+  RoomState,
+  RoomStatus,
+  ServerError,
+  TimerState,
+} from './protocol.js';
 
 /**
  * Salas en memoria, con persistencia en un `Store` (SPEC.md §8).
@@ -83,6 +95,11 @@ export interface Room {
   botMemory: Map<PlayerId, BotMemory>;
   /** false en los escenarios de desarrollo: su estado no sale de seed + acciones. */
   persisted: boolean;
+  /** Estadísticas de la partida en curso (M9), al día con cada acción. */
+  stats: GameStats | null;
+  /** Últimos mensajes del chat (M9). Solo en memoria: un reinicio los pierde. */
+  chat: ChatMessage[];
+  nextChatId: number;
 }
 
 export interface Clock {
@@ -169,6 +186,9 @@ export class RoomManager {
       trade: null,
       persisted: true,
       botMemory: new Map(),
+      stats: null,
+      chat: [],
+      nextChatId: 1,
     };
     const seat = this.addSeat(room, name, null);
     room.hostId = seat.playerId;
@@ -318,12 +338,65 @@ export class RoomManager {
     room.startedAt = this.deps.clock.now();
     room.log = [];
     room.seen = new Map();
+    room.botMemory = new Map();
+    room.stats = recordStats(emptyStats(created.state), created.state, created.events);
     this.deps.store.clearActions(room.code);
     this.touch(room);
     this.resetWaiting(room, created.events);
     this.emit(room, created.events, true);
     this.schedule(room);
     return ok(null);
+  }
+
+  /**
+   * Revancha (SPEC.md §7.4.5): la misma sala vuelve al lobby con la misma
+   * gente. Los bots quedan listos; las personas tienen que volver a marcarse
+   * listas, y las que ya no están conectadas se van de la sala.
+   */
+  rematch(room: Room, playerId: PlayerId): Result<null> {
+    if (room.status !== 'finished') return fail('GAME_IN_PROGRESS');
+    if (room.hostId !== playerId) return fail('NOT_HOST');
+    room.seats = room.seats.filter((seat) => seat.isBot || seat.connected);
+    for (const seat of room.seats) seat.ready = seat.isBot;
+    room.status = 'lobby';
+    room.state = null;
+    room.seed = null;
+    room.startedAt = null;
+    room.log = [];
+    room.seen = new Map();
+    room.stats = null;
+    room.botMemory = new Map();
+    room.trade = null;
+    this.deps.store.clearActions(room.code);
+    this.touch(room);
+    this.schedule(room);
+    this.emit(room, [], false);
+    return ok(null);
+  }
+
+  /**
+   * Un mensaje de chat (M9): texto libre o una reacción rápida. Solo escriben
+   * los que tienen asiento (también los quebrados); los espectadores leen.
+   */
+  chat(
+    room: Room,
+    playerId: PlayerId,
+    message: { readonly text: string } | { readonly emote: EmoteId },
+  ): Result<ChatMessage> {
+    const seat = this.seatOf(room, playerId);
+    if (seat === undefined) return fail('NO_SESSION');
+    const entry: ChatMessage = {
+      id: room.nextChatId,
+      playerId,
+      name: seat.name,
+      at: this.deps.clock.now(),
+      ...('text' in message
+        ? { text: message.text, emote: null }
+        : { text: null, emote: message.emote }),
+    };
+    room.nextChatId += 1;
+    room.chat = [...room.chat, entry].slice(-CHAT_HISTORY);
+    return ok(entry);
   }
 
   /**
@@ -346,6 +419,7 @@ export class RoomManager {
     state.currentPlayerId = ana.playerId;
     state.turn = { doublesCount: 0, rollAgain: false, lastRoll: null };
     apply(state);
+    room.stats = emptyStats(state);
     ana.connected = false;
     beto.connected = false;
     this.resetWaiting(room, []);
@@ -417,19 +491,23 @@ export class RoomManager {
       try {
         const room = this.fromStored(stored);
         if (stored.seed !== null && stored.status !== 'lobby') {
-          let state = createGame({
+          const created = createGame({
             seed: stored.seed,
             rules: stored.rules,
             players: [...stored.seats]
               .sort((a, b) => a.joined - b.joined)
               .map((seat) => ({ id: seat.playerId, name: seat.name, tokenId: seat.tokenId ?? '' })),
-          }).state;
+          });
+          let { state } = created;
+          let stats = recordStats(emptyStats(state), state, created.events);
           for (const entry of actions) {
             const result = applyAction(state, entry.playerId, entry.action);
             if (!result.ok) throw new Error(`replay rechazado: ${result.error}`);
             state = result.state;
+            stats = recordStats(stats, state, result.events);
           }
           room.state = state;
+          room.stats = stats;
           room.log = [...actions];
         }
         this.rooms.set(room.code, room);
@@ -493,6 +571,7 @@ export class RoomManager {
     const result = applyAction(room.state, playerId, action);
     if (!result.ok) return fail(result.error);
     room.state = result.state;
+    if (room.stats !== null) room.stats = recordStats(room.stats, result.state, result.events);
     const entry = { playerId, action };
     if (room.persisted) this.deps.store.appendAction(room.code, room.log.length, entry);
     room.log.push(entry);
@@ -714,6 +793,9 @@ export class RoomManager {
       trade: null,
       persisted: true,
       botMemory: new Map(),
+      stats: null,
+      chat: [],
+      nextChatId: 1,
     };
   }
 

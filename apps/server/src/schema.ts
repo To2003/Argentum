@@ -1,4 +1,10 @@
-import { COLOR_GROUPS, RulesOverridesSchema, TOKEN_IDS } from '@gran-negocio/shared';
+import {
+  CHAT_MAX_LENGTH,
+  COLOR_GROUPS,
+  EMOTES,
+  RulesOverridesSchema,
+  TOKEN_IDS,
+} from '@gran-negocio/shared';
 import { z } from 'zod';
 
 /**
@@ -28,6 +34,18 @@ export const SetTokenSchema = z.strictObject({
 export const SetReadySchema = z.strictObject({ ready: z.boolean() });
 export const SetRulesSchema = z.strictObject({ rules: RulesOverridesSchema });
 export const AddBotSchema = z.strictObject({ difficulty: z.enum(['easy', 'medium', 'hard']) });
+export const WatchSchema = z.strictObject({ code: Code });
+
+/** Texto libre (sin caracteres de control) o una reacción de la lista. */
+export const ChatSchema = z.union([
+  z.strictObject({
+    text: z
+      .string()
+      .transform((value) => value.replace(/\p{Cc}/gu, ' ').trim())
+      .pipe(z.string().min(1).max(CHAT_MAX_LENGTH)),
+  }),
+  z.strictObject({ emote: z.enum(EMOTES) }),
+]);
 export const RemoveBotSchema = z.strictObject({ playerId: z.string().min(1).max(64) });
 
 const Tile = z.int().min(0).max(39);

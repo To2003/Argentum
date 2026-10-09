@@ -321,6 +321,8 @@ describe('persistencia', () => {
     expect(second.restore()).toEqual({ restored: 1, failed: [] });
     const restored = second.get(room.code)!;
     expect(restored.state).toEqual(room.state);
+    // Las estadísticas (M9) se rearman con el mismo replay.
+    expect(restored.stats).toEqual(room.stats);
     expect(restored.seats.every((seat) => !seat.connected)).toBe(true);
     // El token sigue sirviendo para reconectar.
     expect(second.resume(room.code, room.seats[0]!.token).ok).toBe(true);
@@ -370,5 +372,85 @@ describe('bots (M8)', () => {
     expect(room.status).toBe('finished');
     expect(room.state?.phase.kind).toBe('gameOver');
     rooms.stop();
+  });
+});
+
+describe('fin de partida (M9)', () => {
+  /** Una partida de una persona contra un bot, jugada hasta el final. */
+  function finished(rooms: RoomManager) {
+    const { room, seat } = rooms.create('Ana');
+    rooms.addBot(room, seat.playerId, 'hard');
+    rooms.setRules(room, seat.playerId, { maxRounds: 4, turnTimerSeconds: 0 });
+    rooms.start(room, seat.playerId);
+    rooms.setConnected(room, seat.playerId, false);
+    for (let i = 0; i < 2_000 && room.status !== 'finished'; i += 1) vi.advanceTimersByTime(60_000);
+    rooms.setConnected(room, seat.playerId, true);
+    return { room, host: seat.playerId };
+  }
+
+  it('las estadísticas siguen la partida y cierran con el efectivo', () => {
+    const rooms = manager();
+    const { room } = finished(rooms);
+    const stats = room.stats!;
+    expect(stats.worthByRound.at(-1)?.round).toBe(room.state!.round);
+    for (const player of Object.values(room.state!.players)) {
+      const own = stats.players[player.id]!;
+      expect(1500 + own.collected - own.paid).toBe(player.cash);
+    }
+    rooms.stop();
+  });
+
+  it('revancha: solo el host y al terminar; vuelve al lobby con la misma gente', () => {
+    const rooms = manager();
+    const { room: playing, host: other } = twoPlayers(rooms);
+    rooms.start(playing, other);
+    expect(rooms.rematch(playing, other)).toEqual({ ok: false, error: 'GAME_IN_PROGRESS' });
+
+    const { room, host } = finished(rooms);
+    const bot = room.seats.find((seat) => seat.isBot)!;
+    expect(rooms.rematch(room, bot.playerId)).toEqual({ ok: false, error: 'NOT_HOST' });
+    expect(rooms.rematch(room, host).ok).toBe(true);
+    expect(room).toMatchObject({ status: 'lobby', state: null, stats: null, log: [] });
+    expect(room.seats.map((seat) => seat.ready)).toEqual([false, true]);
+    expect(rooms.start(room, host).ok).toBe(true);
+    expect(room.state?.phase.kind).not.toBe('gameOver');
+    rooms.stop();
+  });
+
+  it('revancha: las personas desconectadas no vuelven al lobby', () => {
+    const rooms = manager();
+    const { room, host } = finished(rooms);
+    const joined = rooms.join(room.code, 'Beto');
+    expect(joined).toEqual({ ok: false, error: 'GAME_IN_PROGRESS' });
+    // Alguien que se fue durante la partida (armado a mano: ya no se puede unir).
+    room.seats.push({
+      ...room.seats[0]!,
+      playerId: 'p9',
+      name: 'Ido',
+      connected: false,
+      joined: 9,
+    });
+    rooms.rematch(room, host);
+    expect(room.seats.map((seat) => seat.name)).not.toContain('Ido');
+    rooms.stop();
+  });
+});
+
+describe('chat (M9)', () => {
+  it('guarda los últimos mensajes, con nombre y texto o reacción', () => {
+    const rooms = manager();
+    const { room, host, guest } = twoPlayers(rooms);
+    const first = rooms.chat(room, host, { text: 'Hola, che' });
+    expect(first).toMatchObject({
+      ok: true,
+      value: { id: 1, playerId: host, name: 'Ana', text: 'Hola, che', emote: null },
+    });
+    expect(rooms.chat(room, guest, { emote: 'paga' })).toMatchObject({
+      value: { name: 'Beto', text: null, emote: 'paga' },
+    });
+    expect(rooms.chat(room, 'p99', { text: 'hola' })).toEqual({ ok: false, error: 'NO_SESSION' });
+    for (let i = 0; i < 60; i += 1) rooms.chat(room, host, { text: `m${i}` });
+    expect(room.chat).toHaveLength(50);
+    expect(room.chat.at(-1)?.text).toBe('m59');
   });
 });

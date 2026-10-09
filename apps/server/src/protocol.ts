@@ -2,10 +2,11 @@ import type {
   BotDifficulty,
   ErrorCode,
   GameEvent,
+  GameStats,
   PlayerId,
   PlayerView,
 } from '@gran-negocio/engine';
-import type { RulesConfig } from '@gran-negocio/shared';
+import type { EmoteId, RulesConfig } from '@gran-negocio/shared';
 
 /**
  * El protocolo cliente ↔ server (SPEC.md §8, ADR 0002).
@@ -74,6 +75,8 @@ export interface GameSnapshot {
   readonly seq: number;
   readonly view: PlayerView;
   readonly timers: readonly TimerState[];
+  /** Estadísticas (M9): solo cuando la partida terminó. */
+  readonly stats: GameStats | null;
 }
 
 export interface GameUpdate extends GameSnapshot {
@@ -87,10 +90,24 @@ export interface Session {
   readonly token: string;
 }
 
+/** Un mensaje del chat (M9): texto libre o una reacción rápida, nunca las dos. */
+export interface ChatMessage {
+  readonly id: number;
+  readonly playerId: PlayerId;
+  readonly name: string;
+  /** Epoch ms. */
+  readonly at: number;
+  readonly text: string | null;
+  readonly emote: EmoteId | null;
+}
+
 export interface ServerToClientEvents {
   'room:state': (state: RoomState) => void;
   'game:snapshot': (snapshot: GameSnapshot) => void;
   'game:update': (update: GameUpdate) => void;
+  /** Al entrar: los últimos mensajes. */
+  'chat:history': (messages: readonly ChatMessage[]) => void;
+  'chat:message': (message: ChatMessage) => void;
 }
 
 export interface ClientToServerEvents {
@@ -99,6 +116,11 @@ export interface ClientToServerEvents {
   'room:join': (payload: unknown, ack: (reply: Ack<{ session: Session }>) => void) => void;
   'room:resume': (payload: unknown, ack: (reply: Ack<{ session: Session }>) => void) => void;
   'room:leave': (ack: (reply: Ack) => void) => void;
+  /** Mirar una partida en curso sin asiento (M9). */
+  'room:watch': (payload: unknown, ack: (reply: Ack) => void) => void;
+  /** El host vuelve la sala al lobby después de terminar (M9). */
+  'room:rematch': (ack: (reply: Ack) => void) => void;
+  'chat:send': (payload: unknown, ack: (reply: Ack) => void) => void;
   'lobby:setToken': (payload: unknown, ack: (reply: Ack) => void) => void;
   'lobby:setReady': (payload: unknown, ack: (reply: Ack) => void) => void;
   'lobby:setRules': (payload: unknown, ack: (reply: Ack) => void) => void;
