@@ -1,4 +1,10 @@
-import type { ErrorCode, GameEvent, PlayerId, PlayerView } from '@gran-negocio/engine';
+import type {
+  BotDifficulty,
+  ErrorCode,
+  GameEvent,
+  PlayerId,
+  PlayerView,
+} from '@gran-negocio/engine';
 import type { RulesConfig } from '@gran-negocio/shared';
 
 /**
@@ -42,6 +48,7 @@ export interface PublicSeat {
   readonly ready: boolean;
   readonly connected: boolean;
   readonly isBot: boolean;
+  readonly bot: BotDifficulty | null;
 }
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
@@ -96,5 +103,7 @@ export interface ClientToServerEvents {
   'lobby:setReady': (payload: unknown, ack: (reply: Ack) => void) => void;
   'lobby:setRules': (payload: unknown, ack: (reply: Ack) => void) => void;
   'lobby:start': (ack: (reply: Ack) => void) => void;
+  'lobby:addBot': (payload: unknown, ack: (reply: Ack) => void) => void;
+  'lobby:removeBot': (payload: unknown, ack: (reply: Ack) => void) => void;
   'game:intent': (payload: unknown, ack: (reply: Ack<{ version: number }>) => void) => void;
 }

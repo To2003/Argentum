@@ -3,6 +3,10 @@ import {
   actorsOf,
   applyAction,
   autopilotAction,
+  botAction,
+  newBotMemory,
+  type BotDifficulty,
+  type BotMemory,
   createGame,
   SYSTEM_ACTOR,
   toPlayerView,
@@ -40,6 +44,8 @@ export interface Seat {
   /** Secreto: solo lo recibe su dueño, una vez. */
   readonly token: string;
   readonly isBot: boolean;
+  /** Dificultad si es un bot (M8); null para una persona. */
+  readonly bot: BotDifficulty | null;
   readonly joined: number;
   connected: boolean;
   /** Desde cuándo está desconectado (para el período de gracia). */
@@ -48,6 +54,9 @@ export interface Seat {
 
 /** Recuerda las últimas acciones de cada jugador para ignorar duplicados. */
 const IDEMPOTENCY_WINDOW = 64;
+
+/** Nombres de los bots (la UI muestra su dificultad al lado). */
+const BOT_NAMES = ['Chiche', 'Pocha', 'Tito', 'Coca', 'Nené', 'Pirucho'];
 
 export interface Room {
   readonly code: string;
@@ -70,6 +79,8 @@ export interface Room {
   auctionSince: number;
   /** Desde cuándo está abierto el trueque actual. */
   trade: { id: number; since: number } | null;
+  /** Memoria de cada bot (para no repetir trueques). */
+  botMemory: Map<PlayerId, BotMemory>;
   /** false en los escenarios de desarrollo: su estado no sale de seed + acciones. */
   persisted: boolean;
 }
@@ -90,8 +101,10 @@ export interface RoomDeps {
   readonly timeScale: number;
   /** Período de gracia antes de que el piloto automático tome a un desconectado. */
   readonly reconnectGraceMs: number;
-  /** Pausa entre acciones del piloto automático, para que se puedan seguir. */
+  /** Pausa entre acciones del piloto automático, para que se pueda seguir. */
   readonly autopilotDelayMs: number;
+  /** Pausa entre jugadas de un bot. */
+  readonly botDelayMs: number;
 }
 
 export type Result<T> =
@@ -155,8 +168,9 @@ export class RoomManager {
       auctionSince: now,
       trade: null,
       persisted: true,
+      botMemory: new Map(),
     };
-    const seat = this.addSeat(room, name, false);
+    const seat = this.addSeat(room, name, null);
     room.hostId = seat.playerId;
     this.rooms.set(code, room);
     this.persist(room);
@@ -168,7 +182,7 @@ export class RoomManager {
     if (room === undefined) return fail('ROOM_NOT_FOUND');
     if (room.status !== 'lobby') return fail('GAME_IN_PROGRESS');
     if (room.seats.length >= room.rules.maxPlayers) return fail('ROOM_FULL');
-    const seat = this.addSeat(room, name, false);
+    const seat = this.addSeat(room, name, null);
     this.touch(room);
     this.emit(room, [], false);
     return ok({ room, seat });
@@ -250,6 +264,32 @@ export class RoomManager {
     return ok(null);
   }
 
+  /** El host suma un bot (M8): siempre listo, con la primera ficha libre. */
+  addBot(room: Room, playerId: PlayerId, difficulty: BotDifficulty): Result<Seat> {
+    if (room.status !== 'lobby') return fail('GAME_IN_PROGRESS');
+    if (room.hostId !== playerId) return fail('NOT_HOST');
+    if (room.seats.length >= room.rules.maxPlayers) return fail('ROOM_FULL');
+    const used = new Set(room.seats.map((seat) => seat.name));
+    const name = BOT_NAMES.find((candidate) => !used.has(candidate)) ?? `Bot ${room.nextJoined}`;
+    const seat = this.addSeat(room, name, difficulty);
+    const tokens = new Set(room.seats.map((other) => other.tokenId));
+    seat.tokenId = TOKEN_IDS.find((id) => !tokens.has(id)) ?? null;
+    this.touch(room);
+    this.emit(room, [], false);
+    return ok(seat);
+  }
+
+  removeBot(room: Room, playerId: PlayerId, botId: PlayerId): Result<null> {
+    if (room.status !== 'lobby') return fail('GAME_IN_PROGRESS');
+    if (room.hostId !== playerId) return fail('NOT_HOST');
+    const seat = this.seatOf(room, botId);
+    if (seat?.isBot !== true) return fail('BAD_PAYLOAD');
+    room.seats = room.seats.filter((other) => other.playerId !== botId);
+    this.touch(room);
+    this.emit(room, [], false);
+    return ok(null);
+  }
+
   /** El host arranca: mínimo 2, todos listos (el host cuenta como listo). */
   start(room: Room, playerId: PlayerId): Result<null> {
     if (room.status !== 'lobby') return fail('GAME_IN_PROGRESS');
@@ -294,7 +334,7 @@ export class RoomManager {
     const { room, seat: ana } = this.create('Ana');
     room.persisted = false;
     this.deps.store.deleteRoom(room.code);
-    const beto = this.addSeat(room, 'Beto', false);
+    const beto = this.addSeat(room, 'Beto', null);
     ana.tokenId = 'mate';
     beto.tokenId = 'bombo';
     beto.ready = true;
@@ -362,6 +402,7 @@ export class RoomManager {
           ready: seat.ready,
           connected: seat.connected,
           isBot: seat.isBot,
+          bot: seat.bot,
         })),
     };
   }
@@ -423,14 +464,16 @@ export class RoomManager {
 
   // ---------------------------------------------------------------- internos
 
-  private addSeat(room: Room, name: string, isBot: boolean): Seat {
+  private addSeat(room: Room, name: string, bot: BotDifficulty | null): Seat {
+    const isBot = bot !== null;
     const seat: Seat = {
       playerId: `p${room.nextJoined}`,
       name,
       tokenId: null,
-      ready: false,
+      ready: isBot,
       token: this.deps.randomToken(),
       isBot,
+      bot,
       joined: room.nextJoined,
       connected: !isBot,
       disconnectedAt: null,
@@ -511,6 +554,27 @@ export class RoomManager {
     // después del período de gracia y con una pausa para que se pueda seguir.
     for (const id of actorsOf(state)) {
       const seat = this.seatOf(room, id);
+      // Los bots (M8) juegan con su política, con una pausa para que se pueda seguir.
+      if (seat?.bot !== null && seat?.bot !== undefined) {
+        const difficulty = seat.bot;
+        // Se calcula con una copia de la memoria: la de verdad se usa al jugar.
+        const memory = { ...(room.botMemory.get(id) ?? newBotMemory()) };
+        if (botAction(state, id, difficulty, memory) === null) continue;
+        list.push({
+          kind: 'turn',
+          deadline: room.lastActivity + this.deps.botDelayMs,
+          playerIds: [id],
+          act: () => {
+            const current = room.state;
+            if (current === null) return;
+            const real = room.botMemory.get(id) ?? newBotMemory();
+            room.botMemory.set(id, real);
+            const action = botAction(current, id, difficulty, real);
+            if (action !== null) this.apply(room, id, action);
+          },
+        });
+        continue;
+      }
       if (seat === undefined || seat.connected) continue;
       const action = autopilotAction(state, id, 'disconnected');
       if (action === null) continue;
@@ -616,6 +680,7 @@ export class RoomManager {
         ready: seat.ready,
         token: seat.token,
         isBot: seat.isBot,
+        bot: seat.bot,
         joined: seat.joined,
       })),
     };
@@ -636,6 +701,7 @@ export class RoomManager {
       // Nadie está conectado recién reiniciado: vuelven con su token.
       seats: stored.seats.map((seat) => ({
         ...seat,
+        bot: seat.bot ?? null,
         connected: false,
         disconnectedAt: seat.isBot ? null : now,
       })),
@@ -647,6 +713,7 @@ export class RoomManager {
       auctionSince: now,
       trade: null,
       persisted: true,
+      botMemory: new Map(),
     };
   }
 

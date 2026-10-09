@@ -25,6 +25,7 @@ export interface ServerOptions {
   readonly timeScale?: number;
   readonly reconnectGraceMs?: number;
   readonly autopilotDelayMs?: number;
+  readonly botDelayMs?: number;
   /** Límite de mensajes por socket (por defecto, el de producción). */
   readonly rateLimit?: { readonly capacity: number; readonly perSecond: number };
   /** Rutas `/dev/*` (escenarios). Nunca en producción. */
@@ -72,6 +73,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     timeScale: options.timeScale ?? 1,
     reconnectGraceMs: options.reconnectGraceMs ?? 60_000,
     autopilotDelayMs: options.autopilotDelayMs ?? 1_500,
+    botDelayMs: options.botDelayMs ?? 900,
   });
 
   const app = express();

@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import type { Action, PlayerId } from '@gran-negocio/engine';
+import type { Action, BotDifficulty, PlayerId } from '@gran-negocio/engine';
 import type { RulesConfig } from '@gran-negocio/shared';
 import type { RoomStatus } from './protocol.js';
 
@@ -23,6 +23,8 @@ export interface StoredSeat {
   readonly ready: boolean;
   readonly token: string;
   readonly isBot: boolean;
+  /** Dificultad del bot (las salas guardadas antes de M8 no la tienen). */
+  readonly bot?: BotDifficulty | null;
   readonly joined: number;
 }
 

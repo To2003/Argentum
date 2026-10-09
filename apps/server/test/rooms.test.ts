@@ -20,6 +20,7 @@ const manager = (store: Store = memoryStore(), rules = DEFAULT_RULES) =>
     timeScale: 1,
     reconnectGraceMs: 60_000,
     autopilotDelayMs: 1_000,
+    botDelayMs: 500,
   });
 
 /** Sala de 2 lista para arrancar. */
@@ -45,7 +46,15 @@ describe('lobby', () => {
     expect(room.code).toMatch(/^[A-Z2-9]{6}$/);
     expect(room.hostId).toBe(seat.playerId);
     expect(rooms.publicState(room).seats).toEqual([
-      { playerId: 'p1', name: 'Ana', tokenId: null, ready: false, connected: true, isBot: false },
+      {
+        playerId: 'p1',
+        name: 'Ana',
+        tokenId: null,
+        ready: false,
+        connected: true,
+        isBot: false,
+        bot: null,
+      },
     ]);
   });
 
@@ -328,5 +337,38 @@ describe('persistencia', () => {
     vi.advanceTimersByTime(25 * 60 * 60_000);
     expect(rooms.sweep(24 * 60 * 60_000)).toEqual([room.code]);
     expect(rooms.get(room.code)).toBeUndefined();
+  });
+});
+
+describe('bots (M8)', () => {
+  it('solo el host los suma, en el lobby y con lugar; siempre listos y con ficha', () => {
+    const rooms = manager();
+    const { room, guest } = twoPlayers(rooms);
+    expect(rooms.addBot(room, guest, 'easy')).toEqual({ ok: false, error: 'NOT_HOST' });
+    const added = rooms.addBot(room, room.hostId, 'hard');
+    expect(added.ok).toBe(true);
+    const bot = room.seats.at(-1)!;
+    expect(bot).toMatchObject({ isBot: true, bot: 'hard', ready: true, name: 'Chiche' });
+    expect(bot.tokenId).not.toBeNull();
+    expect(rooms.publicState(room).seats.at(-1)).toMatchObject({ bot: 'hard', isBot: true });
+    expect(rooms.removeBot(room, room.hostId, guest)).toEqual({ ok: false, error: 'BAD_PAYLOAD' });
+    expect(rooms.removeBot(room, room.hostId, bot.playerId).ok).toBe(true);
+    rooms.setRules(room, room.hostId, { maxPlayers: 2 });
+    expect(rooms.addBot(room, room.hostId, 'easy')).toEqual({ ok: false, error: 'ROOM_FULL' });
+  });
+
+  it('una partida de una persona (desconectada) contra dos bots termina sola', () => {
+    const rooms = manager();
+    const { room, seat } = rooms.create('Ana');
+    rooms.addBot(room, seat.playerId, 'medium');
+    rooms.addBot(room, seat.playerId, 'hard');
+    rooms.setRules(room, seat.playerId, { maxRounds: 8, turnTimerSeconds: 0 });
+    expect(rooms.start(room, seat.playerId).ok).toBe(true);
+    // Ana se va: la toma el piloto automático; los bots juegan solos.
+    rooms.setConnected(room, seat.playerId, false);
+    for (let i = 0; i < 2_000 && room.status !== 'finished'; i += 1) vi.advanceTimersByTime(60_000);
+    expect(room.status).toBe('finished');
+    expect(room.state?.phase.kind).toBe('gameOver');
+    rooms.stop();
   });
 });

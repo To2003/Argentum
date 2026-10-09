@@ -25,6 +25,8 @@ const server = createGameServer({
   defaultRules: resolveRules({ useRealBrands: USE_REAL_BRANDS }, DEFAULT_RULES),
   // Escenarios de desarrollo (SCENARIOS): nunca en producción.
   devRoutes: process.env['NODE_ENV'] !== 'production',
+  // Pausa entre jugadas de los bots (los e2e la achican).
+  botDelayMs: Number(process.env['BOT_DELAY_MS'] ?? 900),
 });
 
 const restored = server.rooms.restore();

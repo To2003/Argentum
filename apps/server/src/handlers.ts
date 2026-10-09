@@ -11,7 +11,9 @@ import type {
 import { rateLimiter } from './rateLimit.js';
 import type { Clock, Room, RoomManager } from './rooms.js';
 import {
+  AddBotSchema,
   CreateRoomSchema,
+  RemoveBotSchema,
   IntentSchema,
   JoinRoomSchema,
   ResumeSchema,
@@ -210,6 +212,22 @@ export function registerHandlers(
       const me = input === null ? null : current(ack);
       if (input === null || me === null) return;
       const result = rooms.setRules(me.room, me.playerId, input.rules);
+      reply(ack, result.ok ? { ok: true } : failure(result.error));
+    });
+
+    socket.on('lobby:addBot', (payload, ack) => {
+      const input = guard(AddBotSchema, payload, ack);
+      const me = input === null ? null : current(ack);
+      if (input === null || me === null) return;
+      const result = rooms.addBot(me.room, me.playerId, input.difficulty);
+      reply(ack, result.ok ? { ok: true } : failure(result.error));
+    });
+
+    socket.on('lobby:removeBot', (payload, ack) => {
+      const input = guard(RemoveBotSchema, payload, ack);
+      const me = input === null ? null : current(ack);
+      if (input === null || me === null) return;
+      const result = rooms.removeBot(me.room, me.playerId, input.playerId);
       reply(ack, result.ok ? { ok: true } : failure(result.error));
     });
 

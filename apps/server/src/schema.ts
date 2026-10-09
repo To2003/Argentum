@@ -27,6 +27,8 @@ export const SetTokenSchema = z.strictObject({
 });
 export const SetReadySchema = z.strictObject({ ready: z.boolean() });
 export const SetRulesSchema = z.strictObject({ rules: RulesOverridesSchema });
+export const AddBotSchema = z.strictObject({ difficulty: z.enum(['easy', 'medium', 'hard']) });
+export const RemoveBotSchema = z.strictObject({ playerId: z.string().min(1).max(64) });
 
 const Tile = z.int().min(0).max(39);
 const Bundle = z.strictObject({
