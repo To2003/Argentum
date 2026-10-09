@@ -3,7 +3,9 @@
   "compilerOptions": {
     "rootDir": "..",
     "outDir": "../.tsbuild/e2e",
-    "types": ["node"]
+    "types": ["node"],
+    // Lo que va dentro de `page.evaluate` corre en el navegador.
+    "lib": ["ES2023", "DOM"]
   },
   "include": ["**/*.ts", "../playwright.config.ts"]
 }

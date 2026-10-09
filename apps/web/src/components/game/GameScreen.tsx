@@ -21,6 +21,8 @@ import { EventLog } from './EventLog.js';
 import { GameOver } from './GameOver.js';
 import { PlayersPanel } from './PlayersPanel.js';
 import { TileDialog } from './TileDialog.js';
+import { ZoomPan } from './ZoomPan.js';
+import { FOCUS_SCALE } from '../../game/zoom.js';
 
 /**
  * La partida (SPEC.md §7.4.3). En escritorio: tablero a la izquierda y la
@@ -37,7 +39,8 @@ export function GameScreen() {
   const act = useGame((state) => state.act);
   const stats = useGame((state) => state.stats);
   const [tile, setTile] = useState<number | null>(null);
-  const [zoomed, setZoomed] = useState(false);
+  /** Zoom del tablero: 1 = entero (pinch, Ctrl + rueda o "Acercar a mi ficha"). */
+  const [scale, setScale] = useState(1);
   const [dialog, setDialog] = useState<PanelDialog | null>(null);
   /** La subasta o el trueque que el jugador cerró a mano (no se le vuelven a abrir solos). */
   const [dismissed, setDismissed] = useState<string | null>(null);
@@ -55,8 +58,8 @@ export function GameScreen() {
       stats={stats}
       tile={tile}
       setTile={setTile}
-      zoomed={zoomed}
-      setZoomed={setZoomed}
+      scale={scale}
+      setScale={setScale}
       dialog={dialog}
       setDialog={setDialog}
       dismissed={dismissed}
@@ -77,8 +80,8 @@ function Game({
   stats,
   tile,
   setTile,
-  zoomed,
-  setZoomed,
+  scale,
+  setScale,
   dialog,
   setDialog,
   dismissed,
@@ -94,8 +97,8 @@ function Game({
   stats: GameStats | null;
   tile: number | null;
   setTile: (tile: number | null) => void;
-  zoomed: boolean;
-  setZoomed: (update: (value: boolean) => boolean) => void;
+  scale: number;
+  setScale: (scale: number) => void;
   dialog: PanelDialog | null;
   setDialog: (dialog: PanelDialog | null) => void;
   dismissed: string | null;
@@ -143,52 +146,50 @@ function Game({
       </a>
       {/* min-w-0: sin eso la tira de jugadores (que scrollea) ensanchaba la columna en celular. */}
       <div className="flex min-w-0 flex-col gap-2">
-        <div
-          className={`relative mx-auto w-full ${zoomed ? 'overflow-auto' : ''}`}
-          style={{ maxWidth: 'min(100%, calc(100dvh - 2rem))' }}
-        >
-          <div style={{ width: zoomed ? '220%' : '100%' }}>
-            <Board
-              view={view}
-              onTile={setTile}
-              positions={animation.positions}
-              jailed={animation.jailed}
-              theme={boardTheme}
-              center={
-                <>
-                  <BoardCenter
-                    view={view}
-                    dice={animation.dice}
-                    rolling={animation.rolling}
-                    seed={updateSeq}
-                    reducedMotion={animation.reducedMotion}
-                  />
-                  {animation.card !== null && (
-                    <CardReveal view={view} card={animation.card} onSkip={animation.skip} />
-                  )}
-                </>
-              }
-            />
-          </div>
-        </div>
-        {mine !== undefined && (
+        <ZoomPan scale={scale} onScale={setScale}>
+          <Board
+            view={view}
+            onTile={setTile}
+            positions={animation.positions}
+            jailed={animation.jailed}
+            theme={boardTheme}
+            center={
+              <>
+                <BoardCenter
+                  view={view}
+                  dice={animation.dice}
+                  rolling={animation.rolling}
+                  seed={updateSeq}
+                  reducedMotion={animation.reducedMotion}
+                />
+                {animation.card !== null && (
+                  <CardReveal view={view} card={animation.card} onSkip={animation.skip} />
+                )}
+              </>
+            }
+          />
+        </ZoomPan>
+        {(mine !== undefined || scale > 1) && (
           <Button
             variant="quiet"
-            className="self-center lg:hidden"
+            className={`self-center ${scale > 1 ? '' : 'lg:hidden'}`}
+            data-testid="zoom-toggle"
             onClick={() => {
-              setZoomed((value) => !value);
-              if (!zoomed) {
-                // Llevar la vista a la ficha propia.
-                requestAnimationFrame(() => {
-                  document.querySelector(`[data-tile="${mine.position}"]`)?.scrollIntoView({
-                    block: 'center',
-                    inline: 'center',
-                  });
-                });
+              if (scale > 1 || mine === undefined) {
+                setScale(1);
+                return;
               }
+              setScale(FOCUS_SCALE);
+              // Llevar la vista a la ficha propia (después de agrandar el tablero).
+              requestAnimationFrame(() => {
+                document.querySelector(`[data-tile="${mine.position}"]`)?.scrollIntoView({
+                  block: 'center',
+                  inline: 'center',
+                });
+              });
             }}
           >
-            {zoomed ? t('game.zoomOut') : t('game.zoomIn')}
+            {scale > 1 ? t('game.zoomOut') : t('game.zoomIn')}
           </Button>
         )}
       </div>
