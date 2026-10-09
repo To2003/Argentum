@@ -1,4 +1,4 @@
-import type { Action, GameEvent, PlayerView } from '@gran-negocio/engine';
+import type { Action, BotDifficulty, GameEvent, PlayerView } from '@gran-negocio/engine';
 import type {
   Ack,
   RoomState,
@@ -44,6 +44,8 @@ interface GameStore {
   setReady: (ready: boolean) => Promise<void>;
   setRules: (rules: RulesOverrides) => Promise<void>;
   start: () => Promise<void>;
+  addBot: (difficulty: BotDifficulty) => Promise<void>;
+  removeBot: (playerId: string) => Promise<void>;
   act: (action: Action) => Promise<boolean>;
   clearError: () => void;
 }
@@ -148,6 +150,10 @@ export const useGame = create<GameStore>()((set, get) => {
     setRules: (rules) =>
       simple(() => getSocket().timeout(8000).emitWithAck('lobby:setRules', { rules })),
     start: () => simple(() => getSocket().timeout(8000).emitWithAck('lobby:start')),
+    addBot: (difficulty) =>
+      simple(() => getSocket().timeout(8000).emitWithAck('lobby:addBot', { difficulty })),
+    removeBot: (playerId) =>
+      simple(() => getSocket().timeout(8000).emitWithAck('lobby:removeBot', { playerId })),
     act: async (action) => {
       const { view } = get();
       if (view === null) return false;

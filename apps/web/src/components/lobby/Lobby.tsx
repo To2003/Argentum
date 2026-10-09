@@ -1,3 +1,4 @@
+import { BOT_DIFFICULTIES } from '@gran-negocio/engine';
 import { MIN_PLAYERS, TOKENS } from '@gran-negocio/shared';
 import { useState } from 'react';
 import { t } from '../../i18n.js';
@@ -9,7 +10,7 @@ import { RulesForm } from './RulesForm.js';
 export function Lobby() {
   const room = useGame((state) => state.room);
   const session = useGame((state) => state.session);
-  const { setToken, setReady, setRules, start, leave } = useGame.getState();
+  const { setToken, setReady, setRules, start, leave, addBot, removeBot } = useGame.getState();
   const [copied, setCopied] = useState(false);
   if (room === null || session === null) return null;
 
@@ -73,7 +74,9 @@ export function Lobby() {
                   <span className="text-sm text-tinta/60">
                     {seat.playerId === room.hostId && t('lobby.host')}
                     {seat.playerId === session.playerId && ` ${t('lobby.you')}`}
-                    {!seat.connected && ` ${t('lobby.disconnected')}`}
+                    {seat.bot !== null &&
+                      t('bot.label', { difficulty: t(`bot.${seat.bot}`).toLowerCase() })}
+                    {!seat.connected && seat.bot === null && ` ${t('lobby.disconnected')}`}
                   </span>
                   <span
                     className={`ml-auto text-sm font-bold ${seat.ready || seat.playerId === room.hostId ? 'text-ganancia' : 'text-tinta/50'}`}
@@ -82,10 +85,39 @@ export function Lobby() {
                       ? t('lobby.ready')
                       : t('lobby.notReady')}
                   </span>
+                  {isHost && seat.bot !== null && (
+                    <Button
+                      variant="quiet"
+                      className="px-2 py-1 text-sm"
+                      onClick={() => {
+                        void removeBot(seat.playerId);
+                      }}
+                    >
+                      {t('lobby.removeBot')}
+                    </Button>
+                  )}
                 </li>
               );
             })}
           </ul>
+          {isHost && room.seats.length < room.rules.maxPlayers && (
+            <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="add-bot">
+              <span className="font-bold">{t('lobby.addBot')}</span>
+              {BOT_DIFFICULTIES.map((difficulty) => (
+                <Button
+                  key={difficulty}
+                  variant="secondary"
+                  className="px-3 py-1.5 text-sm"
+                  data-bot={difficulty}
+                  onClick={() => {
+                    void addBot(difficulty);
+                  }}
+                >
+                  {t(`bot.${difficulty}`)}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>

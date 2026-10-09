@@ -422,4 +422,12 @@ export const esAR = {
   'theme.classic': 'Clásico moderno',
   'theme.night': 'Noche en Buenos Aires',
   'theme.topo': 'Mapa topográfico',
+
+  // Bots (M8)
+  'lobby.addBot': 'Sumar un bot',
+  'lobby.removeBot': 'Sacar',
+  'bot.easy': 'Fácil',
+  'bot.medium': 'Medio',
+  'bot.hard': 'Difícil',
+  'bot.label': 'bot {difficulty}',
 } as const satisfies Readonly<Record<string, Message>>;

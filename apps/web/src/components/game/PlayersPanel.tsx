@@ -55,9 +55,12 @@ export function PlayersPanel({
               </span>
             </div>
             <div className="mt-1 flex flex-wrap gap-x-2 text-sm text-tinta/70">
+              {seat?.bot !== null && seat?.bot !== undefined && (
+                <span>{t('bot.label', { difficulty: t(`bot.${seat.bot}`).toLowerCase() })}</span>
+              )}
               {player.inJail && <span>{t('player.inJail')}</span>}
               {player.bankrupt && <span>{t('player.bankrupt')}</span>}
-              {seat !== undefined && !seat.connected && !player.bankrupt && (
+              {seat !== undefined && !seat.connected && seat.bot === null && !player.bankrupt && (
                 <span>{t('player.disconnected')}</span>
               )}
               {player.jailFreeCards.length > 0 && (

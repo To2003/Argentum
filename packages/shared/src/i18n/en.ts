@@ -389,4 +389,11 @@ export const en: Dictionary = {
   'theme.classic': 'Modern classic',
   'theme.night': 'Buenos Aires at night',
   'theme.topo': 'Topographic map',
+
+  'lobby.addBot': 'Add a bot',
+  'lobby.removeBot': 'Remove',
+  'bot.easy': 'Easy',
+  'bot.medium': 'Medium',
+  'bot.hard': 'Hard',
+  'bot.label': '{difficulty} bot',
 };
