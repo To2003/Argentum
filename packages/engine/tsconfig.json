@@ -5,7 +5,7 @@
     "outDir": "../../.tsbuild/engine",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "sim/**/*.ts"],
   "references": [
     {
       "path": "../shared"
