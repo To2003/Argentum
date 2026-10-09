@@ -1,8 +1,9 @@
-import type { Action, GameEvent, PlayerView } from '@gran-negocio/engine';
+import type { Action, GameEvent, GameStats, PlayerView } from '@gran-negocio/engine';
 import type { RoomState, TimerState } from '@gran-negocio/server/protocol';
 import { useAnimation } from '../../animation/useAnimation.js';
 import { useGameSounds } from '../../audio/useGameSounds.js';
 import { useLook } from '../../look.js';
+import { Chat } from '../Chat.js';
 import { SettingsDialog } from '../SettingsDialog.js';
 import type { LoggedEvent } from '../../store/game.js';
 import { CardReveal } from './CardReveal.js';
@@ -34,6 +35,7 @@ export function GameScreen() {
   const lastEvents = useGame((state) => state.lastEvents);
   const updateSeq = useGame((state) => state.updateSeq);
   const act = useGame((state) => state.act);
+  const stats = useGame((state) => state.stats);
   const [tile, setTile] = useState<number | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [dialog, setDialog] = useState<PanelDialog | null>(null);
@@ -50,6 +52,7 @@ export function GameScreen() {
       lastEvents={lastEvents}
       updateSeq={updateSeq}
       act={act}
+      stats={stats}
       tile={tile}
       setTile={setTile}
       zoomed={zoomed}
@@ -71,6 +74,7 @@ function Game({
   lastEvents,
   updateSeq,
   act,
+  stats,
   tile,
   setTile,
   zoomed,
@@ -87,6 +91,7 @@ function Game({
   lastEvents: readonly GameEvent[];
   updateSeq: number;
   act: (action: Action) => Promise<boolean>;
+  stats: GameStats | null;
   tile: number | null;
   setTile: (tile: number | null) => void;
   zoomed: boolean;
@@ -193,13 +198,22 @@ function Game({
           </Button>
         </div>
         <PlayersPanel view={view} seats={room.seats} me={me} />
-        <GameOver view={view} events={log.map((entry) => entry.event)} />
+        <GameOver
+          view={view}
+          events={log.map((entry) => entry.event)}
+          stats={stats}
+          host={{
+            id: room.hostId,
+            name: room.seats.find((seat) => seat.playerId === room.hostId)?.name ?? '',
+          }}
+        />
         {view.phase.kind !== 'gameOver' && (
           <div className="fixed inset-x-0 bottom-0 z-20 max-h-[45dvh] overflow-y-auto border-t border-tinta/10 bg-papel p-3 shadow-[0_-8px_24px_-12px_rgba(20,40,58,0.35)] lg:static lg:max-h-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
             <ActionPanel view={view} timers={timers} onAct={onAct} onOpen={setDialog} />
           </div>
         )}
         <EventLog log={log} view={view} />
+        <Chat canWrite={me !== null} />
       </aside>
 
       {open === 'auction' && phase.kind === 'auction' && (

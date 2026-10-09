@@ -21,6 +21,8 @@ export function Room() {
   const status = useGame((state) => state.status);
   const resume = useGame((state) => state.resume);
   const join = useGame((state) => state.join);
+  const watch = useGame((state) => state.watch);
+  const watching = useGame((state) => state.watching);
   const [name, setName] = useState(loadName);
   const [error, setError] = useState<string | null>(null);
   const saved = useMemo(() => loadSession(code), [code]);
@@ -36,6 +38,17 @@ export function Room() {
 
   if (session?.code === code && room !== null) {
     return room.status === 'lobby' ? <Lobby /> : <GameScreen />;
+  }
+  // Espectador (M9): la partida sin asiento.
+  if (watching === code && room !== null && room.status !== 'lobby') {
+    return (
+      <>
+        <p role="status" className="bg-celeste-claro px-4 py-2 text-center font-bold text-ink">
+          {t('room.watching')}
+        </p>
+        <GameScreen />
+      </>
+    );
   }
 
   if (!needsName) {
@@ -79,6 +92,20 @@ export function Room() {
             {error}
           </p>
         )}
+        <p className="text-sm text-tinta/70">{t('room.watchHint')}</p>
+        <Button
+          variant="secondary"
+          data-testid="watch"
+          disabled={status === 'connecting'}
+          onClick={() => {
+            setError(null);
+            void watch(code).then((failure) => {
+              if (failure !== null) setError(errorText(failure));
+            });
+          }}
+        >
+          {t('room.watch')}
+        </Button>
       </form>
       <Link to="/" className="text-center underline">
         {t('notFound.back')}

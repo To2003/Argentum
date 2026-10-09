@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { LanguagePicker } from '../components/LanguagePicker.js';
+import { Tutorial } from '../components/Tutorial.js';
 import { Button } from '../components/ui.js';
 import { errorText } from '../game/errorText.js';
 import { t } from '../i18n.js';
@@ -15,6 +17,7 @@ export function Landing() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [tutorial, setTutorial] = useState(false);
 
   const go = async (attempt: () => Promise<{ code: string } | string>) => {
     setBusy(true);
@@ -31,6 +34,7 @@ export function Landing() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-4 py-10">
       <header>
+        <LanguagePicker className="mb-6 justify-end" />
         <h1 className="font-display text-[clamp(3rem,13vw,6.5rem)] font-extrabold leading-[0.85] tracking-[-0.04em]">
           El Gran <br />
           Negocio
@@ -96,8 +100,25 @@ export function Landing() {
       <section>
         <h2 className="font-display text-xl font-extrabold">{t('landing.rulesTitle')}</h2>
         <p className="mt-1 max-w-prose text-tinta/80">{t('landing.rulesBody')}</p>
+        <Button
+          variant="secondary"
+          className="mt-3"
+          data-testid="open-tutorial"
+          onClick={() => {
+            setTutorial(true);
+          }}
+        >
+          {t('tutorial.open')}
+        </Button>
         <p className="mt-6 text-sm text-tinta/60">{t('landing.disclaimer')}</p>
       </section>
+      {tutorial && (
+        <Tutorial
+          onClose={() => {
+            setTutorial(false);
+          }}
+        />
+      )}
     </main>
   );
 }

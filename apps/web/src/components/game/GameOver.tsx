@@ -1,11 +1,28 @@
-import type { GameEvent, PlayerView } from '@gran-negocio/engine';
+import type { GameEvent, GameStats, PlayerView } from '@gran-negocio/engine';
 import { tokenColor } from '@gran-negocio/shared';
 import { useEffect } from 'react';
 import { i18n, t } from '../../i18n.js';
-import { TokenBadge } from '../ui.js';
+import { useGame } from '../../store/game.js';
+import { Button, TokenBadge } from '../ui.js';
+import { StatsPanel } from './StatsPanel.js';
 
-/** Fin de partida: quién ganó, por qué y el patrimonio de cada uno (SPEC.md §5.8). */
-export function GameOver({ view, events }: { view: PlayerView; events: readonly GameEvent[] }) {
+/**
+ * Fin de partida: quién ganó, por qué, el patrimonio de cada uno, las
+ * estadísticas y la revancha en la misma sala (SPEC.md §5.8, §7.4.5).
+ */
+export function GameOver({
+  view,
+  events,
+  stats,
+  host,
+}: {
+  view: PlayerView;
+  events: readonly GameEvent[];
+  stats: GameStats | null;
+  /** Quién puede arrancar la revancha. */
+  host: { readonly id: string; readonly name: string };
+}) {
+  const rematch = useGame((state) => state.rematch);
   const over = view.phase.kind === 'gameOver';
   useEffect(() => {
     if (!over) return;
@@ -24,7 +41,9 @@ export function GameOver({ view, events }: { view: PlayerView; events: readonly 
   const { winnerId, reason } = view.phase;
   const winner = view.players.find((p) => p.id === winnerId);
   const final = [...events].reverse().find((event) => event.type === 'gameOver');
-  const worth = final?.type === 'gameOver' ? final.netWorth : {};
+  // Quien entra después del final no tiene el evento: el último punto de las estadísticas sirve igual.
+  const worth =
+    final?.type === 'gameOver' ? final.netWorth : (stats?.worthByRound.at(-1)?.worth ?? {});
   const ranking = [...view.players].sort(
     (a, b) => (worth[b.id] ?? b.cash) - (worth[a.id] ?? a.cash),
   );
@@ -51,6 +70,25 @@ export function GameOver({ view, events }: { view: PlayerView; events: readonly 
           </li>
         ))}
       </ol>
+      {view.viewerId !== null && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {view.viewerId === host.id ? (
+            <Button
+              data-testid="rematch"
+              onClick={() => {
+                void rematch();
+              }}
+            >
+              {t('gameOver.rematch')}
+            </Button>
+          ) : (
+            <p className="text-sm text-tinta/70">
+              {t('gameOver.rematchWaiting', { name: host.name })}
+            </p>
+          )}
+        </div>
+      )}
+      {stats !== null && <StatsPanel stats={stats} view={view} />}
     </section>
   );
 }

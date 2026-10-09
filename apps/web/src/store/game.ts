@@ -1,12 +1,13 @@
-import type { Action, BotDifficulty, GameEvent, PlayerView } from '@gran-negocio/engine';
+import type { Action, BotDifficulty, GameEvent, GameStats, PlayerView } from '@gran-negocio/engine';
 import type {
   Ack,
+  ChatMessage,
   RoomState,
   ServerError,
   Session,
   TimerState,
 } from '@gran-negocio/server/protocol';
-import type { RulesOverrides } from '@gran-negocio/shared';
+import { CHAT_HISTORY, type EmoteId, type RulesOverrides } from '@gran-negocio/shared';
 import { create } from 'zustand';
 import { getSocket } from '../net/client.js';
 import { forgetSession, saveSession } from '../net/session.js';
@@ -25,6 +26,11 @@ export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecti
 interface GameStore {
   status: ConnectionStatus;
   session: Session | null;
+  /** Sala que se mira como espectador (M9), sin asiento. */
+  watching: string | null;
+  chat: readonly ChatMessage[];
+  /** Estadísticas de fin de partida (M9); null mientras se juega. */
+  stats: GameStats | null;
   room: RoomState | null;
   view: PlayerView | null;
   timers: readonly TimerState[];
@@ -38,6 +44,9 @@ interface GameStore {
 
   create: (name: string) => Promise<Session | ServerError>;
   join: (code: string, name: string) => Promise<Session | ServerError>;
+  watch: (code: string) => Promise<ServerError | null>;
+  rematch: () => Promise<void>;
+  sendChat: (message: { text: string } | { emote: EmoteId }) => Promise<void>;
   resume: (session: Session) => Promise<boolean>;
   leave: () => Promise<void>;
   setToken: (tokenId: string) => Promise<void>;
@@ -65,28 +74,46 @@ export const useGame = create<GameStore>()((set, get) => {
     wired = true;
     const socket = getSocket();
     socket.on('room:state', (room) => {
+      // Revancha (M9): la sala volvió al lobby; la partida anterior se descarta.
+      // Un espectador no tiene asiento en el lobby: deja de mirar.
+      if (room.status === 'lobby' && get().view !== null) {
+        set({ view: null, log: [], stats: null, lastEvents: [] });
+      }
+      if (room.status === 'lobby' && get().watching !== null) {
+        set({ watching: null, room: null, status: 'idle' });
+        return;
+      }
       set({ room });
     });
-    socket.on('game:snapshot', ({ view, timers }) => {
-      set((state) => ({ view, timers, lastEvents: [], updateSeq: state.updateSeq + 1 }));
+    socket.on('game:snapshot', ({ view, timers, stats }) => {
+      set((state) => ({ view, timers, stats, lastEvents: [], updateSeq: state.updateSeq + 1 }));
     });
-    socket.on('game:update', ({ view, timers, events }) => {
+    socket.on('game:update', ({ view, timers, events, stats }) => {
       const logged = events.map((event) => ({ id: nextEventId++, event }));
       set((state) => ({
         view,
         timers,
+        stats,
         lastEvents: events,
         updateSeq: state.updateSeq + 1,
         log: [...state.log, ...logged].slice(-LOG_LIMIT),
       }));
     });
+    socket.on('chat:history', (chat) => {
+      set({ chat });
+    });
+    socket.on('chat:message', (message) => {
+      set((state) => ({ chat: [...state.chat, message].slice(-CHAT_HISTORY) }));
+    });
     socket.on('disconnect', () => {
-      if (get().session !== null) set({ status: 'reconnecting' });
+      if (get().session !== null || get().watching !== null) set({ status: 'reconnecting' });
     });
     socket.on('connect', () => {
-      const { session, status } = get();
-      // Al volver la conexión, reanudar con el token (SPEC.md §8).
-      if (session !== null && status === 'reconnecting') void get().resume(session);
+      const { session, watching, status } = get();
+      if (status !== 'reconnecting') return;
+      // Al volver la conexión, reanudar con el token (SPEC.md §8) o volver a mirar.
+      if (session !== null) void get().resume(session);
+      else if (watching !== null) void get().watch(watching);
     });
   };
 
@@ -97,7 +124,7 @@ export const useGame = create<GameStore>()((set, get) => {
     wire();
     // Limpiar ANTES de entrar: el server manda el snapshot antes de responder
     // el ack, y limpiar después borraba la partida recién recibida.
-    set({ status: 'connecting', log: [], view: null });
+    set({ status: 'connecting', log: [], view: null, chat: [], stats: null, watching: null });
     const reply = (await getSocket().timeout(8000).emitWithAck(event, payload)) as Ack<{
       session: Session;
     }>;
@@ -118,6 +145,9 @@ export const useGame = create<GameStore>()((set, get) => {
   return {
     status: 'idle',
     session: null,
+    watching: null,
+    chat: [],
+    stats: null,
     room: null,
     view: null,
     timers: [],
@@ -128,6 +158,20 @@ export const useGame = create<GameStore>()((set, get) => {
 
     create: (name) => enter('room:create', { name }),
     join: (code, name) => enter('room:join', { code, name }),
+    watch: async (code) => {
+      wire();
+      set({ status: 'connecting', log: [], view: null, chat: [], stats: null, session: null });
+      const reply = (await getSocket().timeout(8000).emitWithAck('room:watch', { code })) as Ack;
+      if (!reply.ok) {
+        set({ status: 'idle', watching: null });
+        return reply.error;
+      }
+      set({ status: 'connected', watching: code });
+      return null;
+    },
+    rematch: () => simple(() => getSocket().timeout(8000).emitWithAck('room:rematch')),
+    sendChat: (message) =>
+      simple(() => getSocket().timeout(8000).emitWithAck('chat:send', message)),
     resume: async (session) => {
       const result = await enter('room:resume', { code: session.code, token: session.token });
       if (typeof result === 'string') {
@@ -141,7 +185,7 @@ export const useGame = create<GameStore>()((set, get) => {
       const { session } = get();
       await getSocket().timeout(8000).emitWithAck('room:leave');
       if (session !== null) forgetSession(session.code);
-      set({ session: null, room: null, view: null, log: [], status: 'idle' });
+      set({ session: null, room: null, view: null, log: [], chat: [], status: 'idle' });
     },
     setToken: (tokenId) =>
       simple(() => getSocket().timeout(8000).emitWithAck('lobby:setToken', { tokenId })),

@@ -3,6 +3,7 @@ import { MIN_PLAYERS, TOKENS } from '@gran-negocio/shared';
 import { useState } from 'react';
 import { t } from '../../i18n.js';
 import { useGame } from '../../store/game.js';
+import { Chat } from '../Chat.js';
 import { Button, TokenBadge } from '../ui.js';
 import { RulesForm } from './RulesForm.js';
 
@@ -199,16 +200,19 @@ export function Lobby() {
         </p>
       </section>
 
-      <section className="rounded-2xl bg-superficie p-5">
-        <h2 className="mb-3 font-display text-xl font-extrabold">{t('lobby.rules')}</h2>
-        <RulesForm
-          rules={room.rules}
-          editable={isHost}
-          onChange={(overrides) => {
-            void setRules(overrides);
-          }}
-        />
-      </section>
+      <div className="flex flex-col gap-4">
+        <section className="rounded-2xl bg-superficie p-5">
+          <h2 className="mb-3 font-display text-xl font-extrabold">{t('lobby.rules')}</h2>
+          <RulesForm
+            rules={room.rules}
+            editable={isHost}
+            onChange={(overrides) => {
+              void setRules(overrides);
+            }}
+          />
+        </section>
+        <Chat canWrite />
+      </div>
     </main>
   );
 }
