@@ -16,8 +16,21 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 | M6   | Juice y visuales                                        | ✅ Completado |
 | M7   | Subasta, comercio y construcción en la UI               | ✅ Completado |
 | M8   | Bots y simulador de balance                             | ✅ Completado |
-| M9   | Pulido                                                  | ⬜ Pendiente  |
+| M9   | Pulido                                                  | ✅ Completado |
 | M10  | Deploy y cuentas                                        | ⬜ Pendiente  |
+
+---
+
+## M9 — Pulido ✅ (modo autónomo)
+
+**Qué quedó hecho**: estadísticas de fin de partida (engine, por eventos), revancha en la
+misma sala, espectadores, chat con reacciones rápidas, inglés con selector, tutorial corto de
+reglas y una pasada de accesibilidad (`docs/accessibility.md`). Lighthouse mobile: inicio
+98/100/100 y partida 97/100/100 (performance/accesibilidad/buenas prácticas). Detalle en SPEC
+§15.11 y `REVIEW.md`.
+
+**Siguiente**: M10 (deploy y cuentas) **no se hizo**, como se pidió. Antes de arrancarlo: hacer
+push y revisar el CI (ver el principio de `REVIEW.md`).
 
 ---
 

@@ -6,7 +6,64 @@ default más conservador y simple.
 
 ## Lo primero que tiene que revisar el humano
 
-_(Se completa al final.)_
+1. **Hacer push y mirar el CI.** Desde M3 nada pasó por GitHub: el entorno no tiene
+   credenciales. Hay **más de 70 commits locales** sin publicar, con los tags `m3-done` …
+   `m9-done`. Cada hito se verificó sobre un clon limpio en Linux (install, typecheck, lint,
+   format, cobertura, build, e2e), pero **nunca en Windows**: la matriz del CI es lo primero
+   que lo va a probar. Comando: `git push origin main --tags`.
+2. **ADR 0007: no se usaron Framer Motion, React Three Fiber + Rapier ni Howler**, que nombra
+   el SPEC. En su lugar: CSS, dados en CSS 3D y audio sintetizado con Web Audio. Es la decisión
+   que más se aparta del SPEC. Se justificó por peso (~250 kB de JS + ~1,5 MB de wasm) y por los
+   60 fps en gama media.
+3. **Reglas decididas sin consultar (M3, tabla "Decisiones de reglas")**. Las que más cambian
+   la partida:
+   - recibir una hipotecada siempre cobra el 10 %;
+   - solo se subasta la **última** casa u hotel;
+   - un trueque nunca puede dejar a nadie en deuda;
+   - lo que se le debía a un quebrado va al banco.
+4. **Cómo juega el piloto automático (M4)**: por timeout rechaza las compras; si estás
+   desconectado, compra solo si te quedan $500.
+5. **Balance (M8, `docs/balance-report.md`)**:
+   - en partidas de 4 bots, el 81 % llega al tope de turnos;
+   - los subtes rinden más que los grupos de color.
+
+   Hay ajustes propuestos, **no activados**.
+
+6. **Probar a mano lo que no se pudo verificar acá**:
+   - un celular real y Safari/iOS (solo hubo emulación Pixel 7 en Chromium);
+   - cómo suena el audio;
+   - un lector de pantalla real (NVDA, VoiceOver o TalkBack).
+7. **El chat no se guarda**: un reinicio del server lo pierde (M9). No hay moderación más allá
+   del límite de largo y del rate limit.
+8. **La estética de las ilustraciones** (SVG propios, `assets/README.md`) y los textos con humor
+   rioplatense (cartas, reacciones del chat): conviene que los lea alguien de acá.
+
+### Cómo jugar una partida de 4 en tu compu
+
+```sh
+pnpm install
+pnpm dev            # web en http://localhost:5173, server en :3001
+```
+
+- **Cuatro personas**: abrí `http://localhost:5173` y creá la sala. Mandá el link
+  `/sala/CÓDIGO` a otras tres ventanas: un navegador distinto, una ventana de incógnito y un
+  perfil nuevo. Cada ventana guarda su propia sesión, así que dos pestañas normales del mismo
+  navegador cuentan como el mismo jugador. Todos eligen ficha y se marcan "Listo", y el host
+  aprieta "Empezar la partida".
+- **Desde otros dispositivos de tu red** (celulares en el mismo wifi): en vez de `pnpm dev`,
+  levantá cada parte en su terminal, con la IP de tu PC:
+
+  ```sh
+  WEB_ORIGIN=http://IP-DE-TU-PC:5173 pnpm --filter @gran-negocio/server dev
+  pnpm --filter @gran-negocio/web dev --host
+  ```
+
+  y abrí `http://IP-DE-TU-PC:5173` en cada dispositivo. _No lo probé con dispositivos reales;
+  puede hacer falta abrir los puertos 5173 y 3001 en el firewall de Windows._
+
+- **Vos contra tres bots**: creá la sala, apretá "Sumar un bot" tres veces (Fácil, Medio o
+  Difícil) y empezá.
+- **Mirar sin jugar**: en otra ventana, abrí el link de la sala y apretá "Mirar la partida".
 
 ---
 
@@ -354,8 +411,10 @@ a trocar.
   del engine a 86,8 %. Se escribieron tests unitarios de cada decisión de bot y aparecieron
   **dos problemas reales**: (1) para comprar la propiedad que le completaba un grupo, el bot
   hipotecaba otra del mismo grupo (que después no podía construir); (2) el bot Fácil pujaba
-  por la última casa aunque nunca construye. Ambos arreglados. El reporte de balance se
-  regeneró después de los arreglos.
+  por la última casa aunque nunca construye. Ambos arreglados.
+- **Corrección (hecha en M9)**: acá decía que el reporte de balance se había regenerado
+  después de esos arreglos, y no era cierto. Se regeneró en M9 (commit `c91bece`). Los
+  números se movieron menos de 0,3 puntos y las conclusiones de arriba siguen valiendo.
 - El script de verificación ahora falla por código de salida en cada paso (antes un fallo de
   cobertura se veía pero no frenaba).
 
@@ -368,3 +427,114 @@ a trocar.
 
 `pnpm dev`, crear una sala, "Sumar un bot" (Fácil/Medio/Difícil) y empezar. `pnpm sim` vuelve
 a generar el reporte (~2 minutos).
+
+---
+
+## M9 — Pulido
+
+### Qué quedó hecho
+
+- **Estadísticas de fin de partida** (engine, `stats.ts`):
+  - patrimonio por ronda, en un gráfico SVG propio con trazo y marcador distintos por jugador;
+  - cobrado y pagado, alquileres y veces preso por jugador;
+  - las tres propiedades que más rindieron y la casilla más pisada.
+
+  Salen de los eventos: un replay da las mismas. El fuzz verifica en cada paso que cierren con
+  el efectivo de todos.
+
+- **Revancha**: la misma sala vuelve al lobby (solo el host, al terminar).
+- **Espectadores**: "Mirar la partida" desde el link de la sala.
+- **Chat**: texto y 6 reacciones rápidas, en el lobby y en la partida. Los quebrados escriben;
+  los espectadores solo leen.
+- **Inglés completo**, con selector en la portada y en Ajustes.
+- **Tutorial de reglas** de 5 pasos ("Cómo se juega", en la portada).
+- **Accesibilidad**: checklist en `docs/accessibility.md`.
+  - Contraste AA del texto secundario.
+  - Un patrón por grupo de color, en el tablero, los diálogos y las miniaturas.
+  - Enlace "Saltar a las acciones".
+  - Nombres accesibles de las casillas que empiezan por lo que se lee.
+  - `lang` que sigue al idioma.
+- e2e nuevo (`e2e/polish.spec.ts`), con un host y un espectador:
+  - chat con reacciones;
+  - el espectador mira en inglés;
+  - la partida se juega hasta el final, con estadísticas;
+  - la revancha vuelve al lobby.
+
+### Lighthouse (mobile, build de producción)
+
+| Página  | Performance | Accesibilidad | Buenas prácticas |
+| ------- | ----------: | ------------: | ---------------: |
+| Inicio  |          98 |           100 |              100 |
+| Partida |          97 |           100 |              100 |
+
+Antes de los arreglos: accesibilidad 95 en el inicio (contraste) y buenas prácticas 96 en la
+partida.
+
+### Revisión visual (Playwright, escritorio 1350 × 940 y Pixel 7)
+
+Jugué partidas cortas contra dos bots en los dos tamaños, con capturas del tutorial, el lobby
+con chat, la partida, el fin con estadísticas y la versión en inglés. **Encontré un bug real que
+venía de M5**:
+
+- Con 3 o más jugadores, en celular, la tira de jugadores (que scrollea de costado) ensanchaba
+  la grilla: la página medía 622 px en un teléfono de 412 px.
+- Ni el e2e ni las revisiones anteriores lo vieron porque usaban 2 jugadores.
+- Arreglo: `min-w-0` en las columnas. Ahora mide 412 px.
+
+### Decisiones (M9)
+
+| Duda                                      | Qué elegí                                                                                  | Por qué                                                                     | Cómo revertirlo                               |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | --------------------------------------------- |
+| ¿Los espectadores escriben en el chat?    | No, solo leen                                                                              | No tienen asiento ni nombre; lo más conservador contra spam de desconocidos | `RoomManager.chat` + `canWrite` en `Chat.tsx` |
+| ¿Se puede mirar desde el lobby?           | No: en el lobby se entra con asiento                                                       | En el lobby no hay partida que mirar                                        | `room:watch` en `handlers.ts`                 |
+| ¿Se guarda el chat?                       | Solo en memoria, últimos 50                                                                | No es parte de la partida (`seed + acciones`); guardarlo pide moderación    | `Room.chat`                                   |
+| Revancha: ¿quién vuelve?                  | Todos los asientos conectados y los bots; las personas tienen que volver a marcarse listas | Que nadie quede "listo" sin haber visto la revancha                         | `RoomManager.rematch`                         |
+| ¿Cuándo viajan las estadísticas?          | Solo al terminar la partida                                                                | Durante la partida no se muestran y pesan                                   | `statsOf` en `handlers.ts`                    |
+| Idioma por defecto                        | es-AR siempre (no se detecta el del navegador)                                             | SPEC §2: "Idioma por defecto es-AR"                                         | `load()` en `apps/web/src/i18n.ts`            |
+| Cambio de idioma                          | Vuelve a montar la app con la clave del idioma                                             | Ningún componente necesita suscribirse; el estado vive en los stores        | `App.tsx`                                     |
+| ¿El tutorial se abre solo la primera vez? | No, botón "Cómo se juega"                                                                  | No interrumpir a quien ya sabe jugar (y no romper los e2e)                  | `Landing.tsx`                                 |
+| Gráfico de patrimonio                     | SVG propio, sin librería                                                                   | Sin dependencias nuevas (ADR 0007)                                          | `StatsPanel.tsx`                              |
+| Reacción "¡Qué suerte!"                   | "¡Qué suerte, che!" (descarté "¡Qué orto!")                                                | SPEC §7.5: humor rioplatense moderado, nunca ofensivo                       | `emote.suerte` en `es-AR.ts`                  |
+
+### Cambios a tests de hitos anteriores
+
+| Test                                           | Cambio                                                                                         | Por qué                                                |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `engine/test/invariants.ts` (fuzz, M2/M3)      | Se **agrega** una verificación: las estadísticas cierran con el efectivo de todos en cada paso | Ampliar el fuzz con cada regla nueva; no se quitó nada |
+| `server/test/rooms.test.ts` (persistencia, M4) | Se **agrega** que las estadísticas se rearman igual tras la restauración                       | Las estadísticas tienen que sobrevivir a un reinicio   |
+
+### Deuda técnica (M9)
+
+- El registro de eventos no se puede filtrar (el SPEC §7.4 lo pide "filtrable").
+- En celular, con el tablero entero, las casillas no muestran texto (decisión de M5): se lee
+  tocando la casilla o con "Acercar a mi ficha".
+- Sin moderación del chat (palabras, silenciar a alguien).
+- Al cambiar de idioma se reinician las animaciones en curso (por el remontado).
+- El perfil y las estadísticas históricas por jugador son de M10 (no se hizo, como se pidió).
+
+### Qué NO se pudo verificar (M9)
+
+- Un lector de pantalla real. Se verificó el árbol de accesibilidad (Testing Library por rol y
+  nombre) y Lighthouse/axe.
+- El contraste en modo oscuro y en los temas "Noche" y "Topográfico": Lighthouse mide el modo
+  claro. Se revisaron a ojo en capturas.
+- Lighthouse sobre un deploy real (CDN, HTTP/2, compresión): se midió contra `vite preview` en
+  local.
+
+### Cómo probarlo a mano (M9)
+
+- **Partida**: `pnpm dev`, crear sala, "Sumar un bot", escribir en el chat y apretar una
+  reacción, empezar.
+- **Espectador**: en otra ventana de incógnito, abrir el link de la sala y apretar "Mirar la
+  partida". Para verlo en inglés, apretar primero "English" en la portada.
+- **Final**: con "Límite de rondas: 10" y "Tiempo por turno: Sin límite" la partida termina en
+  pocos minutos. Abajo de la tabla de patrimonio salen las estadísticas, y "Revancha" vuelve al
+  lobby.
+- **Lighthouse**, repetible:
+  1. `pnpm --filter @gran-negocio/web build`;
+  2. `WEB_ORIGIN=http://localhost:4173 pnpm --filter @gran-negocio/server start:e2e`;
+  3. `pnpm --filter @gran-negocio/web preview`;
+  4. `npx lighthouse@12.8.2 http://localhost:4173/`.
+
+  Para la pantalla de partida hace falta una sesión: crear la sala en un perfil de Chrome y
+  correr Lighthouse con ese `--user-data-dir` y `--disable-storage-reset`.

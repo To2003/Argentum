@@ -575,3 +575,12 @@ Decisiones tomadas en modo autónomo (detalle y cómo revertirlas en `REVIEW.md`
 2. **En la sala**: el host suma o saca bots (siempre listos, con ficha libre); el server los hace jugar con ~0,9 s de pausa.
 3. **Simulador** (`pnpm sim` → `docs/balance-report.md`): 1000 partidas por enfrentamiento con seeds fijos, tope de 400 turnos (se decide por patrimonio), asientos rotados.
 
+
+### 15.11 Pulido (M9)
+1. **Estadísticas** (engine, `stats.ts`): salen solo de los eventos y del estado tras cada acción (`emptyStats` + `recordStats`), así que un replay da las mismas. Patrimonio al empezar cada ronda y al final; cobrado/pagado y alquileres por jugador; veces preso; alquiler por casilla; caídas por casilla. El server las lleva al día y las manda solo cuando la partida terminó. El fuzz verifica que `inicial + cobrado − pagado = efectivo` para todos en cada paso.
+2. **Espectadores**: `room:watch` mira una partida en curso o terminada sin asiento (vista sin viewer, sin acciones). En el lobby no hay nada que mirar: se entra con un asiento. Los espectadores leen el chat pero no escriben.
+3. **Chat**: texto libre (sin caracteres de control, hasta 200) o una de 6 reacciones rápidas (por la red viaja el id; el texto sale de i18n). Escriben los que tienen asiento, también los quebrados (§5.7). La sala guarda los últimos 50 mensajes **solo en memoria** (un reinicio del server los pierde). Rate limit: el mismo de todos los mensajes.
+4. **Revancha**: solo el host y solo con la partida terminada. La sala vuelve al lobby con el mismo código; los bots quedan listos, las personas tienen que volver a marcarse listas y las desconectadas se van de la sala. Los espectadores dejan de mirar.
+5. **Idioma**: es-AR por defecto; inglés desde la portada o los ajustes, guardado en el navegador. `<html lang>` sigue al idioma.
+6. **Accesibilidad**: checklist y resultados de Lighthouse en `docs/accessibility.md`. Cada grupo de color tiene además un patrón.
+7. **Tutorial**: cinco pasos cortos desde la portada ("Cómo se juega"); no se abre solo.
