@@ -238,6 +238,13 @@ export function randomPlay(
     readonly maxTurns?: number;
     /** Arma un escenario sobre la partida recién creada (p. ej. una partida avanzada). */
     readonly prepare?: (state: GameState) => void;
+    /**
+     * Tipos de acción a favorecer: si el actor tiene alguno legal, la mitad de
+     * las veces elige entre esos. Sin esto, en una partida avanzada la
+     * política se iba a hipotecar y trocar (hay muchas más opciones de eso) y a
+     * veces nunca construía. Sin `prefer`, el azar es exactamente el de antes.
+     */
+    readonly prefer?: readonly Action['type'][];
   },
 ): PlayResult {
   const created = createGame(setup);
@@ -317,7 +324,11 @@ export function randomPlay(
     }
 
     const legal = legalActions(state, actor);
-    const action = legal[pick(legal.length)];
+    const { prefer } = options;
+    const preferred =
+      prefer === undefined ? [] : legal.filter((candidate) => prefer.includes(candidate.type));
+    const pool = preferred.length > 0 && pick(2) === 0 ? preferred : legal;
+    const action = pool[pick(pool.length)];
     if (action === undefined) throw new Error('sin acciones legales');
     apply(actor, action);
   }

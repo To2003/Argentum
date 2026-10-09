@@ -52,6 +52,8 @@ describe('fuzz de partida avanzada (construcción y escasez)', () => {
             {
               steps: 300,
               policySeed,
+              // Que la partida construya y venda de verdad (es lo que se prueba).
+              prefer: ['buildHouse', 'sellBuilding', 'sellAllBuildings'],
               prepare: (state) => {
                 const ids = Object.keys(state.players);
                 COLOR_GROUPS.forEach((group, i) => {
