@@ -8,7 +8,8 @@ La especificación completa está en [SPEC.md](./SPEC.md) y el estado por hito e
 
 ## Requisitos
 
-- Node 24 (ver `.nvmrc`) y pnpm 10 (`corepack enable` alcanza).
+- Node 24 (ver `.nvmrc`; mínimo 22.13, la primera con `node:sqlite` sin flag) y pnpm 10
+  (`corepack enable` alcanza).
 - Funciona igual en Windows, macOS y Linux.
 
 ## Primeros pasos
@@ -44,9 +45,14 @@ docs/             ADRs y diagrama de la FSM del turno
 e2e/              tests de Playwright
 ```
 
-## Docker (server)
+## Deploy
+
+Web en Vercel y server de juego en Fly.io: guía paso a paso (pensada para Windows 10) en
+[docs/deploy.md](./docs/deploy.md). Variables de entorno: [.env.example](./.env.example).
+
+Para probar la imagen del server en local:
 
 ```sh
 docker build -f apps/server/Dockerfile -t gran-negocio-server .
-docker run -p 3001:3001 -e WEB_ORIGIN=http://localhost:5173 gran-negocio-server
+docker run -p 3001:3001 -v gn-data:/data -e WEB_ORIGIN=http://localhost:5173 gran-negocio-server
 ```
