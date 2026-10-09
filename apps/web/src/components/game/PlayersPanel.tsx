@@ -1,7 +1,7 @@
 import type { PlayerView } from '@gran-negocio/engine';
 import type { PublicSeat } from '@gran-negocio/server/protocol';
 import { BOARD, tokenColor } from '@gran-negocio/shared';
-import { GROUP_COLORS } from '../../game/colors.js';
+import { groupSwatch } from '../../game/colors.js';
 import { i18n, t } from '../../i18n.js';
 import { TokenBadge } from '../ui.js';
 import { Money } from './Money.js';
@@ -35,7 +35,7 @@ export function PlayersPanel({
           <li
             key={player.id}
             data-testid={`player-${player.id}`}
-            className={`min-w-[11rem] rounded-xl bg-superficie p-3 ring-2 lg:min-w-0 ${isTurn ? 'ring-sol' : 'ring-transparent'} ${player.bankrupt ? 'opacity-50' : ''}`}
+            className={`min-w-[12.5rem] rounded-xl bg-superficie p-3 ring-2 lg:min-w-0 ${isTurn ? 'ring-sol' : 'ring-transparent'} ${player.bankrupt ? 'opacity-50' : ''}`}
           >
             <div className="flex items-center gap-2">
               <TokenBadge
@@ -47,7 +47,7 @@ export function PlayersPanel({
               <span className="truncate font-bold">
                 {player.name}
                 {player.id === me && (
-                  <span className="font-normal text-tinta/60"> ({t('lobby.you')})</span>
+                  <span className="font-normal text-tinta/70"> ({t('lobby.you')})</span>
                 )}
               </span>
               <span className="ml-auto font-display text-lg font-extrabold">
@@ -77,10 +77,11 @@ export function PlayersPanel({
                     key={tile.index}
                     title={i18n.tileName(tile, view.rules.useRealBrands)}
                     className={`h-3 w-4 rounded-sm ring-1 ring-tinta/30 ${view.properties[tile.index]?.mortgaged === true ? 'opacity-40' : ''}`}
-                    style={{
-                      backgroundColor:
-                        tile.kind === 'property' ? GROUP_COLORS[tile.group] : '#94a3b8',
-                    }}
+                    style={
+                      tile.kind === 'property'
+                        ? groupSwatch(tile.group)
+                        : { backgroundColor: '#94a3b8' }
+                    }
                   />
                 ))}
               </div>

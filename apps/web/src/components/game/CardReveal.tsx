@@ -43,7 +43,7 @@ export function CardReveal({
           <span className="text-[3.2cqw] leading-snug">
             {i18n.cardText(cardById(card.cardId), view.rules)}
           </span>
-          <span className="text-[2.2cqw] text-tinta/60">{player?.name}</span>
+          <span className="text-[2.2cqw] text-tinta/70">{player?.name}</span>
         </span>
       </span>
     </button>

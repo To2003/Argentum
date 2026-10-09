@@ -238,7 +238,7 @@ export function ActionPanel({
         </div>
       )}
       {phase.kind !== 'gameOver' && me !== null && (
-        <p className="mt-3 text-sm text-tinta/60">{t('game.tapHint')}</p>
+        <p className="mt-3 text-sm text-tinta/70">{t('game.tapHint')}</p>
       )}
 
       {confirmBankruptcy && (

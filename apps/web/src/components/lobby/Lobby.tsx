@@ -72,7 +72,7 @@ export function Lobby() {
                     />
                   )}
                   <span className="font-bold">{seat.name}</span>
-                  <span className="text-sm text-tinta/60">
+                  <span className="text-sm text-tinta/70">
                     {seat.playerId === room.hostId && t('lobby.host')}
                     {seat.playerId === session.playerId && ` ${t('lobby.you')}`}
                     {seat.bot !== null &&
@@ -80,7 +80,7 @@ export function Lobby() {
                     {!seat.connected && seat.bot === null && ` ${t('lobby.disconnected')}`}
                   </span>
                   <span
-                    className={`ml-auto text-sm font-bold ${seat.ready || seat.playerId === room.hostId ? 'text-ganancia' : 'text-tinta/50'}`}
+                    className={`ml-auto text-sm font-bold ${seat.ready || seat.playerId === room.hostId ? 'text-ganancia' : 'text-tinta/70'}`}
                   >
                     {seat.ready || seat.playerId === room.hostId
                       ? t('lobby.ready')

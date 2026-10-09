@@ -21,7 +21,7 @@ export function EventLog({ log, view }: { log: readonly LoggedEvent[]; view: Pla
         {t('log.title')}
       </h2>
       {lines.length === 0 ? (
-        <p className="text-sm text-tinta/60">{t('log.empty')}</p>
+        <p className="text-sm text-tinta/70">{t('log.empty')}</p>
       ) : (
         <ol
           aria-live="polite"

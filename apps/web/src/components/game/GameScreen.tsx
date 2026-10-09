@@ -134,7 +134,15 @@ function Game({
 
   return (
     <div className="mx-auto grid max-w-[1400px] gap-4 p-4 pb-48 lg:grid-cols-[minmax(0,1fr)_24rem] lg:pb-4">
-      <div className="flex flex-col gap-2">
+      {/* Con teclado, saltear las 40 casillas e ir directo a lo que se puede hacer. */}
+      <a
+        href="#acciones"
+        className="sr-only z-30 rounded-xl bg-sol px-4 py-2 font-bold text-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+      >
+        {t('a11y.skipToActions')}
+      </a>
+      {/* min-w-0: sin eso la tira de jugadores (que scrollea) ensanchaba la columna en celular. */}
+      <div className="flex min-w-0 flex-col gap-2">
         <div
           className={`relative mx-auto w-full ${zoomed ? 'overflow-auto' : ''}`}
           style={{ maxWidth: 'min(100%, calc(100dvh - 2rem))' }}
@@ -185,7 +193,7 @@ function Game({
         )}
       </div>
 
-      <aside className="flex flex-col gap-4">
+      <aside className="flex min-w-0 flex-col gap-4">
         <div className="flex justify-end">
           <Button
             variant="quiet"
@@ -208,7 +216,11 @@ function Game({
           }}
         />
         {view.phase.kind !== 'gameOver' && (
-          <div className="fixed inset-x-0 bottom-0 z-20 max-h-[45dvh] overflow-y-auto border-t border-tinta/10 bg-papel p-3 shadow-[0_-8px_24px_-12px_rgba(20,40,58,0.35)] lg:static lg:max-h-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+          <div
+            id="acciones"
+            tabIndex={-1}
+            className="fixed inset-x-0 bottom-0 z-20 max-h-[45dvh] overflow-y-auto border-t border-tinta/10 bg-papel p-3 shadow-[0_-8px_24px_-12px_rgba(20,40,58,0.35)] lg:static lg:max-h-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
+          >
             <ActionPanel view={view} timers={timers} onAct={onAct} onOpen={setDialog} />
           </div>
         )}

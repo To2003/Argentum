@@ -65,7 +65,7 @@ export function Landing() {
         <Button type="submit" disabled={!validName || busy}>
           {t('landing.create')}
         </Button>
-        <p className="text-center text-tinta/60">{t('landing.or')}</p>
+        <p className="text-center text-tinta/70">{t('landing.or')}</p>
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex flex-1 flex-col gap-1 font-bold">
             {t('landing.codeLabel')}
@@ -110,7 +110,7 @@ export function Landing() {
         >
           {t('tutorial.open')}
         </Button>
-        <p className="mt-6 text-sm text-tinta/60">{t('landing.disclaimer')}</p>
+        <p className="mt-6 text-sm text-tinta/70">{t('landing.disclaimer')}</p>
       </section>
       {tutorial && (
         <Tutorial

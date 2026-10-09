@@ -2,7 +2,7 @@ import type { Action, PlayerView } from '@gran-negocio/engine';
 import type { TimerState } from '@gran-negocio/server/protocol';
 import { tileAt, tokenColor } from '@gran-negocio/shared';
 import { useState } from 'react';
-import { GROUP_COLORS } from '../../game/colors.js';
+import { groupSwatch } from '../../game/colors.js';
 import { useSecondsLeft } from '../../game/useSecondsLeft.js';
 import { i18n, t } from '../../i18n.js';
 import { Button, Dialog, TokenBadge } from '../ui.js';
@@ -44,10 +44,7 @@ export function AuctionDialog({
   return (
     <Dialog title={t('prompt.auction', { lot: title })} onClose={onClose}>
       {lotTile.kind === 'property' && phase.lot.kind === 'property' && (
-        <div
-          className="-mx-5 -mt-4 mb-4 h-3"
-          style={{ backgroundColor: GROUP_COLORS[lotTile.group] }}
-        />
+        <div className="-mx-5 -mt-4 mb-4 h-3" style={groupSwatch(lotTile.group)} />
       )}
       <p
         className="font-display text-2xl font-extrabold"

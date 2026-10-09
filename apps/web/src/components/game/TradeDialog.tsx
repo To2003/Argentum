@@ -9,7 +9,7 @@ import {
 import type { TimerState } from '@gran-negocio/server/protocol';
 import { BOARD, isOwnable, tileAt, tokenColor } from '@gran-negocio/shared';
 import { useState } from 'react';
-import { GROUP_COLORS } from '../../game/colors.js';
+import { groupSwatch } from '../../game/colors.js';
 import { reasonText } from '../../game/reasonText.js';
 import { rulesView } from '../../game/rulesView.js';
 import { useSecondsLeft } from '../../game/useSecondsLeft.js';
@@ -174,7 +174,7 @@ function BundleSummary({
     <section className="rounded-xl bg-superficie p-3">
       <h3 className="mb-2 font-bold">{title}</h3>
       {empty ? (
-        <p className="text-tinta/60">{t('trade.none')}</p>
+        <p className="text-tinta/70">{t('trade.none')}</p>
       ) : (
         <ul className="space-y-1">
           {bundle.cash > 0 && <li className="font-bold tabular-nums">{i18n.money(bundle.cash)}</li>}
@@ -197,7 +197,7 @@ function PropertyLine({ view, index }: { view: PlayerView; index: number }) {
     <li className="flex items-center gap-2">
       <span
         className="h-3 w-4 shrink-0 rounded-sm ring-1 ring-tinta/30"
-        style={{ backgroundColor: tile.kind === 'property' ? GROUP_COLORS[tile.group] : '#94a3b8' }}
+        style={tile.kind === 'property' ? groupSwatch(tile.group) : { backgroundColor: '#94a3b8' }}
       />
       <span>
         {i18n.tileName(tile, view.rules.useRealBrands)}
@@ -401,9 +401,9 @@ function PropertyLabel({ view, index }: { view: PlayerView; index: number }) {
       <span className="inline-flex items-center gap-2">
         <span
           className="h-3 w-4 shrink-0 rounded-sm ring-1 ring-tinta/30"
-          style={{
-            backgroundColor: tile.kind === 'property' ? GROUP_COLORS[tile.group] : '#94a3b8',
-          }}
+          style={
+            tile.kind === 'property' ? groupSwatch(tile.group) : { backgroundColor: '#94a3b8' }
+          }
         />
         {i18n.tileName(tile, view.rules.useRealBrands)}
       </span>

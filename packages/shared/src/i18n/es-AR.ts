@@ -465,6 +465,7 @@ export const esAR = {
   'stats.noRent': 'Nadie cobró alquiler.',
   'stats.mostLanded': 'La casilla más pisada',
   'stats.landedTimes': { one: '{count} vez', other: '{count} veces' },
+  'a11y.skipToActions': 'Saltar a las acciones',
   'tutorial.open': 'Cómo se juega',
   'tutorial.step': 'Paso {step} de {total}',
   'tutorial.prev': 'Anterior',

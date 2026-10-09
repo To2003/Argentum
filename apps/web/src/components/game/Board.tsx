@@ -2,7 +2,7 @@ import type { PlayerView } from '@gran-negocio/engine';
 import { BOARD, tokenColor, type Tile as TileData } from '@gran-negocio/shared';
 import type { ReactNode } from 'react';
 import { placement } from '../../game/boardLayout.js';
-import { GROUP_COLORS } from '../../game/colors.js';
+import { groupSwatch } from '../../game/colors.js';
 import { i18n, t } from '../../i18n.js';
 import { TileIcon } from '../../art/icons.js';
 import type { BoardTheme } from '../../look.js';
@@ -65,12 +65,14 @@ function Tile({ tile, view, onClick }: { tile: TileData; view: PlayerView; onCli
   const name = i18n.tileName(tile, view.rules.useRealBrands);
   const price =
     'price' in tile ? i18n.money(tile.price) : 'amount' in tile ? i18n.money(tile.amount) : '';
-  const band = tile.kind === 'property' ? GROUP_COLORS[tile.group] : null;
+  const band = tile.kind === 'property' ? groupSwatch(tile.group) : null;
   const corner = place.side === 'corner';
   const houses = owned?.houses ?? 0;
 
+  // Empieza con lo que se lee en la casilla (nombre y precio), como pide WCAG 2.5.3.
   const label = [
     name,
+    price === '' ? null : price,
     owner === undefined ? null : `${t('tileInfo.owner')}: ${owner.name}`,
     owned?.mortgaged === true ? t('tileInfo.mortgaged') : null,
     ...here.map((player) => player.name),
@@ -100,7 +102,7 @@ function Tile({ tile, view, onClick }: { tile: TileData; view: PlayerView; onCli
         {band !== null && (
           <span
             className="flex h-[22%] w-full items-center justify-center gap-[0.3cqw]"
-            style={{ backgroundColor: band }}
+            style={band}
           >
             {houses === 5 ? (
               <span className="building-pop h-[1.6cqw] w-[3.4cqw] rounded-[0.3cqw] bg-fileteado ring-[0.15cqw] ring-white" />

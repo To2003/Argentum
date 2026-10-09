@@ -1,7 +1,7 @@
 import { mortgageLiftCost, type Action, type PlayerView } from '@gran-negocio/engine';
 import { tileAt, tokenColor } from '@gran-negocio/shared';
 import { TileIcon } from '../../art/icons.js';
-import { GROUP_COLORS } from '../../game/colors.js';
+import { groupSwatch } from '../../game/colors.js';
 import { i18n, t } from '../../i18n.js';
 import { Button, Dialog, TokenBadge } from '../ui.js';
 
@@ -62,10 +62,7 @@ export function TileDialog({
   return (
     <Dialog title={name} onClose={onClose}>
       {tile.kind === 'property' && (
-        <div
-          className="-mx-5 -mt-4 mb-4 h-3"
-          style={{ backgroundColor: GROUP_COLORS[tile.group] }}
-        />
+        <div className="-mx-5 -mt-4 mb-4 h-3" style={groupSwatch(tile.group)} />
       )}
       <div className="mb-3 flex items-center gap-3">
         <TileIcon tile={tile} className="h-12 w-12 shrink-0" />

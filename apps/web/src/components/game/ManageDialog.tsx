@@ -9,7 +9,7 @@ import {
   type PlayerView,
 } from '@gran-negocio/engine';
 import { BOARD, COLOR_GROUPS, GROUP_TILES, tileAt, type ColorGroup } from '@gran-negocio/shared';
-import { GROUP_COLORS } from '../../game/colors.js';
+import { GROUP_COLORS, groupSwatch } from '../../game/colors.js';
 import { reasonText } from '../../game/reasonText.js';
 import { rulesView } from '../../game/rulesView.js';
 import { i18n, t } from '../../i18n.js';
@@ -106,7 +106,7 @@ export function ManageDialog({
                   {label}
                 </Button>
                 {!enabled && error !== null && (
-                  <span className="mt-0.5 max-w-48 text-xs text-tinta/60">{reasonText(error)}</span>
+                  <span className="mt-0.5 max-w-48 text-xs text-tinta/70">{reasonText(error)}</span>
                 )}
               </span>
             );
@@ -126,7 +126,7 @@ export function ManageDialog({
         style={{ backgroundColor: `${GROUP_COLORS[group]}22` }}
       >
         <h3 className="mb-2 flex items-center gap-2 font-bold">
-          <span className="h-3 w-5 rounded-sm" style={{ backgroundColor: GROUP_COLORS[group] }} />
+          <span className="h-3 w-5 rounded-sm" style={groupSwatch(group)} />
           {i18n.groupName(group)}
           {complete && <span className="text-sm font-normal">({t('manage.groupComplete')})</span>}
         </h3>

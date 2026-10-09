@@ -431,6 +431,7 @@ export const en: Dictionary = {
   'stats.noRent': 'Nobody collected rent.',
   'stats.mostLanded': 'Most landed-on space',
   'stats.landedTimes': { one: '{count} time', other: '{count} times' },
+  'a11y.skipToActions': 'Skip to actions',
   'tutorial.open': 'How to play',
   'tutorial.step': 'Step {step} of {total}',
   'tutorial.prev': 'Back',
