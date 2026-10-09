@@ -42,3 +42,10 @@ export {
   type BotDifficulty,
   type BotMemory,
 } from './bots/bots.js';
+export {
+  emptyStats,
+  recordStats,
+  type GameStats,
+  type PlayerStats,
+  type WorthPoint,
+} from './stats.js';

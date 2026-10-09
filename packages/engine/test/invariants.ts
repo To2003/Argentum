@@ -14,6 +14,8 @@ import {
   applyAction,
   CANDIDATE_ACTIONS,
   createGame,
+  emptyStats,
+  recordStats,
   createRng,
   legalActions,
   nextInt,
@@ -246,6 +248,9 @@ export function randomPlay(
   const ledger = new Ledger(state);
   ledger.record(created.events);
   checkInvariants(state, ledger);
+  // Las estadísticas (M9) tienen que cerrar con el efectivo de cada uno.
+  const startCash = Object.fromEntries(Object.values(state.players).map((p) => [p.id, p.cash]));
+  let stats = emptyStats(state);
 
   let rng: RngState = createRng(options.policySeed);
   const pick: Pick = (bound) => {
@@ -265,6 +270,13 @@ export function randomPlay(
     events.push(...result.events);
     ledger.record(result.events);
     checkInvariants(state, ledger);
+    stats = recordStats(stats, state, result.events);
+    for (const player of Object.values(state.players)) {
+      const own = stats.players[player.id];
+      expect((startCash[player.id] ?? 0) + (own?.collected ?? 0) - (own?.paid ?? 0)).toBe(
+        player.cash,
+      );
+    }
   };
 
   /** Prueba una acción: aceptada o no, `applyAction` no toca el estado de entrada (ni su RNG). */
