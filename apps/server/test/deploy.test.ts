@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readConfig } from '../src/config.js';
@@ -101,6 +101,44 @@ describe('deploy: Dockerfile y versión de Node', () => {
       .map((line) => line.trim());
     expect(ignored).not.toContain('data');
     expect(ignored).not.toContain('**/data');
+  });
+});
+
+describe('deploy: render.yaml (Render gratis, Blueprint)', () => {
+  const yaml = read('render.yaml');
+  /** `clave: valor` de primer nivel del servicio (sin comentarios). */
+  const field = (name: string) => new RegExp(`^\\s+${name}:\\s*(\\S+)`, 'm').exec(yaml)?.[1];
+  /** Las variables de `envVars`: key → value. */
+  const envVars: Record<string, string> = {};
+  for (const match of yaml.matchAll(/- key: (\w+)\s*\n\s*value: (\S+)/g)) {
+    if (match[1] !== undefined && match[2] !== undefined) envVars[match[1]] = match[2];
+  }
+
+  it('apunta al Dockerfile del server, con la raíz del repo como contexto', () => {
+    const dockerfile = field('dockerfilePath') ?? '';
+    expect(existsSync(root(dockerfile))).toBe(true);
+    expect(dockerfile).toBe('./apps/server/Dockerfile');
+    expect(field('dockerContext')).toBe('.');
+    expect(field('runtime')).toBe('docker');
+  });
+
+  it('las variables son las que lee el server (DB_PATH, no otro nombre)', () => {
+    const known = ['NODE_ENV', 'PORT', 'WEB_ORIGIN', 'DB_PATH', 'USE_REAL_BRANDS', 'BOT_DELAY_MS'];
+    for (const key of Object.keys(envVars)) expect(known).toContain(key);
+    expect(envVars['DB_PATH']).toBeDefined();
+    expect(envVars['NODE_ENV']).toBe('production');
+    const config = readConfig(envVars);
+    expect(config.devRoutes).toBe(false);
+    for (const origin of config.allowedOrigins) expect(origin).toMatch(/^https:\/\/[^/]+$/);
+  });
+
+  it('plan gratis: la base en /tmp (no hay disco), marcada como efímera, y health check', () => {
+    expect(field('plan')).toBe('free');
+    expect(envVars['DB_PATH']?.startsWith('/tmp/')).toBe(true);
+    expect(readConfig(envVars, ['/tmp']).ephemeralStorage).toBe(true);
+    expect(field('healthCheckPath')).toBe('/health');
+    // PORT lo pone Render; el server lo lee de process.env.PORT.
+    expect(envVars['PORT']).toBeUndefined();
   });
 });
 

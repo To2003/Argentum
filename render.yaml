@@ -1,0 +1,32 @@
+# Render blueprint: servidor de juego de Argentum, plan gratis (docs/deploy.md).
+#
+# Gratis = sin tarjeta, pero el servicio se duerme a los 15 minutos sin
+# tráfico y tarda cerca de un minuto en despertar cuando alguien se conecta.
+# No hay disco persistente: las salas viven mientras el servicio está
+# despierto (un WebSocket abierto cuenta como tráfico). Un redeploy, un
+# reinicio o dormirse las borra; el server lo avisa en el log al arrancar.
+services:
+  - type: web
+    name: argentum
+    runtime: docker
+    # El Dockerfile está en apps/server, pero el contexto tiene que ser la raíz
+    # del repo: copia packages/shared y packages/engine.
+    dockerfilePath: ./apps/server/Dockerfile
+    dockerContext: .
+    plan: free
+    region: virginia
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      # Producción: apaga las rutas /dev/* (también lo fija el Dockerfile).
+      - key: NODE_ENV
+        value: production
+      # URL de la web en Vercel, exacta y sin barra final (varias: separadas
+      # por coma). Sin esto el navegador rechaza el socket.
+      - key: WEB_ORIGIN
+        value: https://argentum-lemon.vercel.app
+      # Escribible pero efímero en el plan gratis. Es la variable que lee el
+      # server (apps/server/src/config.ts).
+      - key: DB_PATH
+        value: /tmp/argentum.db
+      # PORT no va: Render lo define (10000) y el server escucha process.env.PORT.

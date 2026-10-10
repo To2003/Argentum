@@ -47,7 +47,8 @@ e2e/              tests de Playwright
 
 ## Deploy
 
-Web en Vercel y server de juego en Fly.io: guía paso a paso (pensada para Windows 10) en
+Web en Vercel y server de juego en Render (plan gratis, `render.yaml`), con Fly.io como
+alternativa de pago con disco (`fly.toml`). Guía paso a paso (pensada para Windows 10) en
 [docs/deploy.md](./docs/deploy.md). Variables de entorno: [.env.example](./.env.example).
 
 Para probar la imagen del server en local:
