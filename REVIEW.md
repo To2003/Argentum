@@ -737,3 +737,50 @@ credenciales). Tag `m10-deploy-done`. Las cuentas y perfiles de M10 quedan para 
 
 - **Imagen local**: ver la sección Deploy del README.
 - **Deploy de verdad**: seguir `docs/deploy.md`. Al final, el paso 5 ("Probar que anda").
+
+### Render en el plan gratis (agregado después de M10-deploy)
+
+Dejaste un `render.yaml` basado en el de tu otro proyecto. Lo revisé contra este repo:
+
+| Punto                         | Estado                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Variable de la base        | Ya era `DB_PATH`, la que lee `apps/server/src/config.ts`. Sin cambios.                                                                                                                                                                                                                                                    |
+| 2. Dockerfile en la raíz      | **No lo está**: vive en `apps/server/Dockerfile` y necesita la raíz del repo como contexto (copia `packages/`). Con `./Dockerfile`, el Blueprint fallaba al buildear. Corregido: `dockerfilePath: ./apps/server/Dockerfile` + `dockerContext: .`. No moví el Dockerfile porque `fly.toml` y los tests lo referencian ahí. |
+| 3. `process.env.PORT`         | Sí: `readConfig` lo lee y `listen(PORT)` va sin host, o sea, todas las interfaces. Verificado con el contenedor: con `PORT=10000` escucha en `:::10000`. `PORT` no va en el yaml: Render lo define.                                                                                                                       |
+| 4. Arranque sin disco y aviso | Arrancaba, pero **no avisaba**. Ahora `readConfig` marca `ephemeralStorage` si `DB_PATH` cae dentro de un directorio temporal (`os.tmpdir()` o `/tmp`), y el server loguea: "AVISO: DB_PATH=… está en un directorio temporal. Las salas NO sobreviven a un reinicio, un redeploy ni a que el servicio se duerma…".        |
+| 5. Keep-alive                 | No se agregó.                                                                                                                                                                                                                                                                                                             |
+| 6. `docs/deploy.md`           | El paso a paso usa Render (New → Blueprint). Fly.io queda como alternativa de pago con disco.                                                                                                                                                                                                                             |
+
+**Verificado** (local; no hay credenciales de Render):
+
+- **Contenedor como lo corre Render** (`PORT=10000`, `NODE_ENV=production`,
+  `DB_PATH=/tmp/argentum.db`, sin volumen):
+  - escucha en 10000;
+  - loguea el aviso;
+  - `/health` responde;
+  - acepta una partida por socket desde `WEB_ORIGIN`;
+  - un contenedor nuevo (lo que hace un redeploy) arranca con 0 salas.
+- **Tests**:
+  - `config.test.ts`: detección de directorio temporal (incluido que `/tmpfoo` no cuenta); el
+    proceso real con la base en un temporal loguea el aviso, y con la base fuera no lo loguea;
+  - `deploy.test.ts`: el Dockerfile al que apunta `render.yaml` existe, el contexto es la raíz,
+    las variables son las que lee el server, `NODE_ENV=production`, sin `PORT`, plan `free` con
+    la base en `/tmp`. Con el `./Dockerfile` original el test falla.
+
+**Decisiones**:
+
+| Duda                           | Qué elegí                                                       | Por qué                                                                     | Cómo revertirlo               |
+| ------------------------------ | --------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------- |
+| Cómo detectar "sin disco"      | `DB_PATH` dentro de `os.tmpdir()` o `/tmp`                      | Es lo que hace un plan sin disco; no depende de variables propias de Render | `isInsideTemp` en `config.ts` |
+| ¿Avisar o frenar?              | Avisar y seguir                                                 | Lo pediste así; el plan gratis es una elección válida                       | `index.ts`                    |
+| `name`, `region`, `WEB_ORIGIN` | Los dejé como venían (`argentum`, `virginia`, tu URL de Vercel) | Son tuyos; Render no tiene región en Sudamérica                             | `render.yaml`                 |
+
+**Límite conocido (sin arreglar, fuera de lo pedido)**: si el server dormía, despertar tarda
+cerca de un minuto, pero el cliente espera el ack de "Crear partida" o "Entrar" solo 8
+segundos. Esa primera acción puede fallar con un error genérico, aunque reintentando anda. La
+guía lo dice ("despertalo con `/health` y esperá"). Un arreglo posible: que el cliente muestre
+"Despertando el server…" y reintente mientras el socket se conecta.
+
+**Proceso**: un commit falló en el hook de commitlint (asunto con mayúscula inicial).
+`render.yaml` y su test ya estaban en stage y quedaron dentro del commit siguiente, el de docs
+(`df2acfa`), en vez de uno propio. No reescribí la historia.

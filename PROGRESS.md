@@ -23,7 +23,8 @@ Estado del proyecto hito por hito. Cualquier sesión nueva arranca leyendo [SPEC
 
 ## M10-deploy — Deploy listo, sin cuentas 🔶
 
-Web en Vercel y server en Fly.io, **preparados pero sin desplegar** (no hay credenciales):
+Web en Vercel y server en **Render (plan gratis, `render.yaml`)**, con Fly.io como alternativa
+de pago con disco; **preparados pero sin desplegar** (no hay credenciales):
 `fly.toml`, Dockerfile, `vercel.json`, `.env.example` y la guía `docs/deploy.md` para Windows 10. Verificado en local con la imagen de Docker y el build de producción. En el camino se
 arregló un hueco de seguridad (el WebSocket aceptaba cualquier origen) y el mínimo de Node.
 
