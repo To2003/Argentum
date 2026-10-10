@@ -33,6 +33,14 @@ console.log(
   `${restored.restored} sala(s) restaurada(s) de ${DB_PATH}` +
     (restored.failed.length > 0 ? `; ${restored.failed.length} no se pudieron reaplicar` : ''),
 );
+if (config.ephemeralStorage) {
+  // Sin disco persistente (p. ej. Render gratis): avisar, no frenar.
+  console.warn(
+    `AVISO: DB_PATH=${DB_PATH} está en un directorio temporal. Las salas NO sobreviven a un ` +
+      'reinicio, un redeploy ni a que el servicio se duerma. Para conservarlas, poné la base en ' +
+      'un disco persistente (ver docs/deploy.md).',
+  );
+}
 
 const sweep = setInterval(() => {
   const dropped = server.rooms.sweep(ROOM_TTL_MS);

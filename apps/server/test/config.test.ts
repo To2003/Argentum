@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +17,18 @@ describe('configuración por entorno', () => {
       useRealBrands: true,
       devRoutes: true,
       botDelayMs: 900,
+      ephemeralStorage: false,
     });
+  });
+
+  it('DB_PATH en un directorio temporal (Render gratis) se marca como efímero', () => {
+    const temp = ['/tmp'];
+    expect(readConfig({ DB_PATH: '/tmp/argentum.db' }, temp).ephemeralStorage).toBe(true);
+    expect(readConfig({ DB_PATH: '/tmp/sub/gn.db' }, temp).ephemeralStorage).toBe(true);
+    expect(readConfig({ DB_PATH: '/data/gn.db' }, temp).ephemeralStorage).toBe(false);
+    // Que el nombre empiece igual no alcanza: /tmpfoo no es /tmp.
+    expect(readConfig({ DB_PATH: '/tmpfoo/gn.db' }, temp).ephemeralStorage).toBe(false);
+    expect(readConfig({}, temp).ephemeralStorage).toBe(false);
   });
 
   it('lee las variables; WEB_ORIGIN admite varios orígenes separados por comas', () => {
@@ -78,15 +89,23 @@ describe('SEGURIDAD: el proceso real del server', () => {
     for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
   });
 
-  /** Arranca el server y devuelve su URL cuando ya escucha. */
-  async function boot(nodeEnv: string | undefined): Promise<string> {
-    const dir = mkdtempSync(join(tmpdir(), 'gn-config-'));
+  /** Todo lo que imprimió el último server arrancado (stdout y stderr). */
+  let lastOutput = '';
+
+  /**
+   * Arranca el server y devuelve su URL cuando ya escucha. La base va en un
+   * directorio temporal (como en Render gratis) salvo que se pida otra carpeta.
+   */
+  async function boot(nodeEnv: string | undefined, parent = tmpdir()): Promise<string> {
+    mkdirSync(parent, { recursive: true });
+    const dir = mkdtempSync(join(parent, 'gn-config-'));
     dirs.push(dir);
     const env: NodeJS.ProcessEnv = { ...process.env, PORT: '0', DB_PATH: join(dir, 'gn.db') };
     delete env['NODE_ENV'];
     if (nodeEnv !== undefined) env['NODE_ENV'] = nodeEnv;
     const child = spawn(tsx, [entry], { env, shell: process.platform === 'win32' });
     children.push(child);
+    lastOutput = '';
     return new Promise((resolve, reject) => {
       let output = '';
       const timer = setTimeout(() => {
@@ -94,6 +113,7 @@ describe('SEGURIDAD: el proceso real del server', () => {
       }, 20_000);
       child.stdout.on('data', (chunk: Buffer) => {
         output += chunk.toString();
+        lastOutput = output;
         const match = /escuchando en (http:\/\/localhost:\d+)/.exec(output);
         if (match?.[1] !== undefined) {
           clearTimeout(timer);
@@ -102,9 +122,27 @@ describe('SEGURIDAD: el proceso real del server', () => {
       });
       child.stderr.on('data', (chunk: Buffer) => {
         output += chunk.toString();
+        lastOutput = output;
       });
     });
   }
+
+  it('arranca con la base en un directorio temporal (Render gratis) y avisa que es efímera', async () => {
+    const url = await boot('production');
+    expect((await fetch(`${url}/health`)).status).toBe(200);
+    // El aviso va por stderr: puede llegar después del "escuchando" de stdout.
+    await expect.poll(() => lastOutput).toMatch(/AVISO: DB_PATH=.* está en un directorio temporal/);
+    expect(lastOutput).toContain('NO sobreviven a un reinicio');
+  }, 30_000);
+
+  it('con la base fuera de los temporales (un disco), no hay aviso', async () => {
+    // Una carpeta del repo que git ignora (node_modules).
+    const disk = fileURLToPath(new URL('../node_modules/.cache/gn-config-disk', import.meta.url));
+    await boot('production', disk);
+    // Margen para que llegue stderr, si hubiera algo.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(lastOutput).not.toContain('AVISO');
+  }, 30_000);
 
   it('con NODE_ENV=production, /dev/scenario responde 404', async () => {
     const url = await boot('production');
