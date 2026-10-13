@@ -1,8 +1,14 @@
 import fc from 'fast-check';
-import { COLOR_GROUPS, DEFAULT_RULES, GROUP_TILES } from '@gran-negocio/shared';
+import {
+  COLOR_GROUPS,
+  DEFAULT_RULES,
+  GROUP_TILES,
+  tileAt,
+  type ColorGroup,
+} from '@gran-negocio/shared';
 import type { GameSetup } from '../src/index.js';
 import { FuzzFailure, randomPlay, type PlayResult } from './invariants.js';
-import type { Replay } from './fuzzReport.js';
+import { writeCoverage, type Replay } from './fuzzReport.js';
 
 /**
  * Los escenarios del fuzz, compartidos por `fuzz.test.ts` y el loop
@@ -96,13 +102,126 @@ export function playAdvanced(
   );
 }
 
-/** La propiedad: las invariantes se chequean en cada paso y tiene que haber construcción. */
-export const advancedProperty = () =>
-  fc.property(...advancedArbs, (setup, policySeed, evenBuild, scarce) =>
-    playAdvanced(setup, policySeed, evenBuild, scarce).events.some(
-      (event) => event.type === 'buildingBuilt',
-    ),
-  );
+// ---------------------------------------------------------------- cobertura
+
+/**
+ * Qué llegó a ejercitar cada caso de la partida avanzada. No decide si el test
+ * pasa: es para ver que el escenario sigue cubriendo lo que importa.
+ */
+export const COVERAGE_KEYS = [
+  'houses',
+  'hotel',
+  'soldBuilding',
+  'mortgagedBuiltGroup',
+  'scarcityAuction',
+  'bankruptcy',
+] as const;
+export type CoverageKey = (typeof COVERAGE_KEYS)[number];
+
+export const COVERAGE_LABELS: Readonly<Record<CoverageKey, string>> = {
+  houses: 'construyeron casas',
+  hotel: 'llegaron a hotel',
+  soldBuilding: 'vendieron edificios',
+  mortgagedBuiltGroup: 'hipotecaron un grupo con edificios',
+  scarcityAuction: 'subasta por escasez de casas',
+  bankruptcy: 'quiebra',
+};
+
+/** Cuántos casos llegaron a cada cosa, sobre `cases`. */
+export interface CoverageTally {
+  cases: number;
+  readonly hits: Record<CoverageKey, number>;
+}
+
+export const newCoverage = (): CoverageTally => ({
+  cases: 0,
+  hits: {
+    houses: 0,
+    hotel: 0,
+    soldBuilding: 0,
+    mortgagedBuiltGroup: 0,
+    scarcityAuction: 0,
+    bankruptcy: 0,
+  },
+});
+
+const groupOf = (tile: number): ColorGroup | null => {
+  const found = tileAt(tile);
+  return found.kind === 'property' ? found.group : null;
+};
+
+/**
+ * Qué ejercitó una partida. `initiallyBuilt`: el escenario de escasez arranca
+ * con casas en todos los grupos (puestas por `prepare`, sin eventos).
+ */
+export function coverageOf(
+  result: PlayResult,
+  initiallyBuilt: boolean,
+): Record<CoverageKey, boolean> {
+  const built = new Set<ColorGroup>(initiallyBuilt ? COLOR_GROUPS : []);
+  const seen: Record<CoverageKey, boolean> = {
+    houses: false,
+    hotel: false,
+    soldBuilding: false,
+    mortgagedBuiltGroup: false,
+    scarcityAuction: false,
+    bankruptcy: false,
+  };
+  for (const event of result.events) {
+    switch (event.type) {
+      case 'buildingBuilt': {
+        if (event.houses === 5) seen.hotel = true;
+        else seen.houses = true;
+        const group = groupOf(event.tile);
+        if (group !== null) built.add(group);
+        break;
+      }
+      case 'buildingSold':
+        seen.soldBuilding = true;
+        break;
+      case 'propertyMortgaged': {
+        const group = groupOf(event.tile);
+        if (group !== null && built.has(group)) seen.mortgagedBuiltGroup = true;
+        break;
+      }
+      case 'auctionOpened':
+        if (event.lot.kind === 'building') seen.scarcityAuction = true;
+        break;
+      case 'playerBankrupt':
+        seen.bankruptcy = true;
+        break;
+      default:
+        break;
+    }
+  }
+  return seen;
+}
+
+export function addCoverage(tally: CoverageTally, seen: Record<CoverageKey, boolean>): void {
+  tally.cases += 1;
+  for (const key of COVERAGE_KEYS) if (seen[key]) tally.hits[key] += 1;
+}
+
+/** "construyeron casas 40/40, llegaron a hotel 12/40, …". */
+export const formatCoverage = (tally: CoverageTally): string =>
+  COVERAGE_KEYS.map(
+    (key) => `${COVERAGE_LABELS[key]} ${String(tally.hits[key])}/${String(tally.cases)}`,
+  ).join(', ');
+
+/** Las cosas que ningún caso de la corrida llegó a ejercitar. */
+export const coverageGaps = (tally: CoverageTally): CoverageKey[] =>
+  COVERAGE_KEYS.filter((key) => tally.hits[key] === 0);
+
+/**
+ * La propiedad: las invariantes se chequean en cada paso y tiene que haber
+ * construcción. Si se pasa `coverage`, cada caso suma lo que ejercitó.
+ */
+export const advancedProperty = (coverage?: CoverageTally) =>
+  fc.property(...advancedArbs, (setup, policySeed, evenBuild, scarce) => {
+    const result = playAdvanced(setup, policySeed, evenBuild, scarce);
+    if (coverage !== undefined) addCoverage(coverage, coverageOf(result, scarce));
+    return result.events.some((event) => event.type === 'buildingBuilt');
+  });
 
 export const replayAdvanced = (
   setup: GameSetup,
@@ -117,3 +236,19 @@ export const replayAdvanced = (
         ? null
         : 'la partida no construyó nada (la propiedad devolvió false)',
   );
+
+/**
+ * Cierra una corrida: la imprime, la guarda en test-results y avisa (sin
+ * fallar) si algo no se ejercitó en ningún caso.
+ */
+export function reportCoverage(name: string, tally: CoverageTally): CoverageKey[] {
+  const gaps = coverageGaps(tally);
+  writeCoverage(name, { property: name, ...tally, gaps });
+  console.log(`cobertura (${String(tally.cases)} casos): ${formatCoverage(tally)}`);
+  if (gaps.length > 0) {
+    console.warn(
+      `ADVERTENCIA de cobertura: ningún caso ${gaps.map((key) => COVERAGE_LABELS[key]).join(', ')}`,
+    );
+  }
+  return gaps;
+}

@@ -5,6 +5,8 @@ import { randomPlay, replay } from './invariants.js';
 import {
   ADVANCED_NAME,
   advancedProperty,
+  newCoverage,
+  reportCoverage,
   hex32,
   replayAdvanced,
   replayOf,
@@ -40,7 +42,13 @@ describe('fuzz de partida avanzada (construcción y escasez)', () => {
   it(
     ADVANCED_NAME,
     () => {
-      checkProperty(ADVANCED_NAME, advancedProperty(), { numRuns: 40 }, replayAdvanced);
+      // Cobertura de la corrida: se informa siempre (también si falla) y no decide nada.
+      const coverage = newCoverage();
+      try {
+        checkProperty(ADVANCED_NAME, advancedProperty(coverage), { numRuns: 40 }, replayAdvanced);
+      } finally {
+        reportCoverage(ADVANCED_NAME, coverage);
+      }
     },
     120_000,
   );

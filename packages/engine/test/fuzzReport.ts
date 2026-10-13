@@ -115,3 +115,11 @@ export function checkProperty<Ts extends [unknown, ...unknown[]]>(
   });
   throw new Error(message);
 }
+
+/** La cobertura de una corrida, en test-results/fuzz-coverage-<propiedad>.json. */
+export function writeCoverage(property: string, coverage: unknown): string {
+  mkdirSync(REPORT_DIR, { recursive: true });
+  const file = `${REPORT_DIR}fuzz-coverage-${slug(property)}.json`;
+  writeFileSync(file, `${JSON.stringify(coverage, null, 2)}\n`);
+  return file;
+}

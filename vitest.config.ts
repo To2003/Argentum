@@ -3,6 +3,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     projects: ['packages/*/vitest.config.ts', 'apps/*/vitest.config.ts'],
+    // La cobertura del fuzz y sus advertencias se imprimen aunque el test pase
+    // (explícito: algunos entornos ocultan la consola de los tests que pasan).
+    silent: false,
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**', 'apps/*/src/**'],
