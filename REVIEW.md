@@ -917,3 +917,40 @@ a paso:
    interacción con la construcción.
 
 Mi recomendación es la 1.
+
+### Fuzz de partida avanzada: decisión aplicada (opción 1)
+
+**Qué cambió** (sin tocar invariantes, umbrales ni el chequeo de "hubo construcción"):
+
+- **Política**: mientras nadie haya construido en la partida, si quien actúa puede construir,
+  construye (`buildFirst` en `randomPlay`). Desde la primera construcción vuelve a elegir **al
+  azar entre las acciones legales**, para seguir ejercitando hipotecas, ventas de edificios,
+  hoteles y trueques sobre grupos ya construidos. Reemplaza al sesgo `prefer`, que favorecía
+  construir y vender el 50 % de las veces durante toda la partida.
+- **Cobertura por corrida**: cuántos casos construyeron casas, llegaron a hotel, vendieron
+  edificios, hipotecaron un grupo con edificios, tuvieron subasta por escasez y tuvieron una
+  quiebra. El test la imprime y la guarda en `test-results/fuzz-coverage-*.json`. Si una
+  categoría da 0 en las 40, imprime `ADVERTENCIA de cobertura: …` **sin fallar**. Para que se
+  vea aunque el test pase, `silent: false` en `vitest.config.ts`: Vitest ocultaba la consola de
+  los tests que pasan en este entorno, aunque su default documentado es mostrarla.
+- `pnpm fuzz:loop` junta la cobertura de todas las corridas y lista las que tuvieron algo en
+  cero. El CI sube también la cobertura en el artefacto de falla.
+
+**`pnpm fuzz:loop 200`** (semillas `1721610619…1721610818`, 6 procesos): **200 corridas, 8000
+casos, ninguna falla**. Antes del cambio, la misma cantidad había fallado en la corrida 164.
+
+| Categoría                          |         Casos | Mínimo por corrida | Corridas en cero |
+| ---------------------------------- | ------------: | -----------------: | ---------------: |
+| Construyeron casas                 |  8000 (100 %) |              40/40 |                0 |
+| Llegaron a hotel                   | 1839 (23,0 %) |               2/40 |                0 |
+| Vendieron edificios                |  8000 (100 %) |              40/40 |                0 |
+| Hipotecaron un grupo con edificios |  8000 (100 %) |              40/40 |                0 |
+| Subasta por escasez de casas       | 2333 (29,2 %) |               3/40 |                0 |
+| Quiebra                            |   301 (3,8 %) |               0/40 |           **40** |
+
+**Lo único que quedó en cero**: la **quiebra**, en 40 de 200 corridas (avisado, no falla). Es
+esperable en este escenario: cada jugador arranca con $3000 y un grupo completo, y en 300
+acciones (muchas de gestión) rara vez alguien no puede pagar. La quiebra se ejercita más en el
+fuzz general ("cualquier secuencia de acciones legales"), que arranca con $500 o $1500. Si se
+quiere que este escenario la cubra en cada corrida, se podría arrancar con menos plata en una
+parte de los casos. Cambia lo que el escenario prueba, así que no lo hice sin consultarte.
