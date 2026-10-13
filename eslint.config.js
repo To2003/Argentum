@@ -91,7 +91,7 @@ export default defineConfig(
     rules: forbiddenInPureCode,
   },
   {
-    files: ['apps/server/**/*.ts', 'e2e/**/*.ts', '*.config.{js,ts}'],
+    files: ['apps/server/**/*.ts', 'e2e/**/*.ts', 'scripts/**/*.ts', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },
   {

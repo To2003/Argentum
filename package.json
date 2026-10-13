@@ -21,7 +21,8 @@
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
     "prepare": "husky",
-    "sim": "tsx packages/engine/sim/run.ts"
+    "sim": "tsx packages/engine/sim/run.ts",
+    "fuzz:loop": "tsx scripts/fuzz-loop.ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js}": [
