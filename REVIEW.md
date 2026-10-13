@@ -775,11 +775,8 @@ Dejaste un `render.yaml` basado en el de tu otro proyecto. Lo revisé contra est
 | ¿Avisar o frenar?              | Avisar y seguir                                                 | Lo pediste así; el plan gratis es una elección válida                       | `index.ts`                    |
 | `name`, `region`, `WEB_ORIGIN` | Los dejé como venían (`argentum`, `virginia`, tu URL de Vercel) | Son tuyos; Render no tiene región en Sudamérica                             | `render.yaml`                 |
 
-**Límite conocido (sin arreglar, fuera de lo pedido)**: si el server dormía, despertar tarda
-cerca de un minuto, pero el cliente espera el ack de "Crear partida" o "Entrar" solo 8
-segundos. Esa primera acción puede fallar con un error genérico, aunque reintentando anda. La
-guía lo dice ("despertalo con `/health` y esperá"). Un arreglo posible: que el cliente muestre
-"Despertando el server…" y reintente mientras el socket se conecta.
+**Límite conocido**: el cliente esperaba solo 8 s al server dormido. **Resuelto** después;
+ver "Server dormido: la web lo despierta sola" más abajo.
 
 **Proceso**: la verificación sobre el clon limpio falló la primera vez por **mis tests nuevos**,
 no por el código. El clon vive en `/tmp`, así que la base por defecto (`./data`) y la carpeta
@@ -790,3 +787,67 @@ usan una carpeta del home para el caso persistente (commit `60107f5`).
 Además, un commit falló en el hook de commitlint (asunto con mayúscula inicial).
 `render.yaml` y su test ya estaban en stage y quedaron dentro del commit siguiente, el de docs
 (`df2acfa`), en vez de uno propio. No reescribí la historia.
+
+### Server dormido: la web lo despierta sola (después de Render)
+
+En Render gratis el server se duerme y tarda ~1 minuto en despertar. Antes, la web esperaba 8 s
+y fallaba con un error genérico.
+
+**Qué hace ahora**:
+
+- **Crear, unirse, mirar y volver a una sala** pasan por `net/wake.ts`. Si el pedido no llega
+  (sin conexión en 8 s o sin respuesta), aparece arriba **"Despertando el server… Puede tardar
+  hasta un minuto"**, con una barra de progreso sobre los 90 s y los segundos transcurridos
+  (`role="status"`).
+- **Reintento con espera creciente**: 1, 2, 4, 8 y después 10 s. En cada pausa se consulta
+  `/health`; **apenas responde, se retoma la acción pendiente sola**.
+- **Tope de ~90 s**: no arranca una pausa que se pase del tope. Después muestra "El server no
+  respondió…" con **Reintentar**, que repite la misma acción.
+- **Sin keep-alive**: `/health` solo se consulta durante la espera. Verificado: después de
+  rendirse hay 0 consultas, y con el server despierto no hay ninguna.
+- **La sesión guardada se conserva** si el server no despierta al volver a una sala. Antes, un
+  error al reconectar borraba la sesión.
+- Textos en es-AR (voseo) y en inglés.
+
+**Un riesgo que se evitó**: Socket.IO guarda los emits hechos sin conexión y los manda al
+reconectar. Reintentar un "unirse" que había quedado guardado habría creado **dos asientos** para
+la misma persona. Ahora los pedidos de entrada **solo se emiten con el socket conectado**
+(`request` en `net/client.ts`); el e2e verifica que queda un solo jugador.
+
+**Tests**:
+
+- `wake.test.ts` (timers simulados): esperas crecientes; ningún ping si el server responde; se
+  retoma apenas `/health` responde; sigue si `/health` responde pero el pedido todavía no llega;
+  se rinde con la última consulta a los 85 s (11 consultas); los errores que no son de conexión
+  se propagan.
+- `wakeFlow.test.tsx` (portada con la red simulada y timers falsos):
+  1. aparece "Despertando…";
+  2. a los ~90 s, el error con Reintentar, y ya no hay consultas a `/health`;
+  3. Reintentar entra a la sala;
+  4. y si el server despierta durante la espera, entra sola.
+- `e2e/wake.spec.ts` (escritorio y Pixel 7): Playwright corta el WebSocket y `/health` del server
+  real. Se ve el aviso; cuando "despierta", se crea la sala con un solo jugador. Y volver a una
+  sala con el server dormido conserva la sesión y retoma.
+- **Verificado en la web real con capturas** (escritorio y Pixel 7, es-AR e inglés): el aviso a
+  1 s y a 30 s; el error con Reintentar a los ~90 s; Reintentar → sala.
+
+**Decisiones**:
+
+| Duda                                 | Qué elegí                                                        | Por qué                                                                                                                             | Cómo revertirlo                         |
+| ------------------------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Cuándo se considera "server dormido" | Sin conexión del socket en 8 s, o sin respuesta al pedido en 8 s | Lo mismo que antes era el error genérico; un server despierto contesta en milisegundos                                              | `REQUEST_TIMEOUT_MS` en `net/client.ts` |
+| Esperas                              | 1, 2, 4, 8, 10, 10… s; tope 90 s                                 | Pediste espera creciente y ~90 s; 10 s de máximo para notar rápido que despertó                                                     | `net/wake.ts`                           |
+| Dónde se ve el aviso                 | Arriba, en cualquier pantalla (montado en `App`)                 | Lo dispara la portada, la sala por link o la vuelta a una sala                                                                      | `App.tsx`                               |
+| Acciones dentro de la partida        | Sin cambios                                                      | Con jugadores conectados el server no se duerme; si se corta, Socket.IO reconecta y vuelve con la sesión (que ahora también espera) | —                                       |
+
+**Cambios a tests de hitos anteriores**:
+
+| Test                                  | Cambio                                               | Por qué                                                                                                                                                                                                                                           |
+| ------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `web/test/App.test.tsx` (M0/M5), sala | La espera del chunk lazy pasa de 1 s (default) a 5 s | En la suite completa en paralelo, con los archivos de test nuevos, el chunk tardaba 1,02–1,06 s y fallaba 4 de 4 corridas. Solo, pasa. Con 5 s pasa 3 de 3, con la misma aserción: verifica que la sala pida el nombre, no la velocidad de carga. |
+
+**Una falla que no pude reproducir**: en una corrida de la suite completa falló una vez el fuzz
+de "partida avanzada" (M3), a los 83 s, y no quedó el detalle. Lo corrí solo 6 veces y barrí
+3000 casos de ese escenario atrapando cualquier error: **0 fallas de invariantes y 0 casos sin
+construcción**. Queda anotado. Si vuelve a aparecer, el mensaje de fast-check trae el seed para
+reproducirlo.

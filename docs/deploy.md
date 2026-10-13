@@ -34,15 +34,17 @@ Archivos que intervienen (ya están en el repo):
 
 ### Qué implica el plan gratis de Render
 
-| Qué pasa                                           | Consecuencia para el juego                                                                                                                    |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Se duerme a los 15 minutos sin tráfico**         | Una partida con jugadores conectados lo mantiene despierto: un WebSocket abierto cuenta como tráfico.                                         |
-| **Tarda cerca de un minuto en despertar**          | Quien entra con el server dormido ve "Conectando…". La primera acción puede fallar: esperá un minuto y reintentá.                             |
-| **No hay disco persistente**: la base va en `/tmp` | **Las salas se pierden** si el server se reinicia, se redespliega (cada push a `main`) o se duerme. El server lo avisa en el log al arrancar. |
-| 750 horas gratis por mes y por workspace           | Alcanza para un servicio prendido todo el mes. Las horas dormido no cuentan.                                                                  |
+| Qué pasa                                           | Consecuencia para el juego                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Se duerme a los 15 minutos sin tráfico**         | Una partida con jugadores conectados lo mantiene despierto: un WebSocket abierto cuenta como tráfico.                                                                                                                                                                                                    |
+| **Tarda cerca de un minuto en despertar**          | La web lo maneja sola: muestra "Despertando el server… puede tardar hasta un minuto" con una barra de progreso, consulta `/health` y sigue con lo que ibas a hacer apenas responde. Si en ~90 s no responde, aparece un error con **Reintentar**. Igual conviene **entrar unos minutos antes de jugar**. |
+| **No hay disco persistente**: la base va en `/tmp` | **Las salas se pierden** si el server se reinicia, se redespliega (cada push a `main`) o se duerme. El server lo avisa en el log al arrancar.                                                                                                                                                            |
+| 750 horas gratis por mes y por workspace           | Alcanza para un servicio prendido todo el mes. Las horas dormido no cuentan.                                                                                                                                                                                                                             |
 
 Sin "keep-alive" a propósito: hacer ping para que no se duerma gasta las horas gratis y va
 contra el espíritu del plan.
+La web consulta `/health` **solo mientras espera** que el server despierte, nunca con el server
+despierto.
 
 ## 0. Antes de empezar
 
@@ -196,8 +198,9 @@ URL y el server los rechaza a propósito. Para probar uno, sumá su URL a `WEB_O
 
 ## 5. Probar que anda
 
-1. Si el server estuvo un rato sin uso, **despertalo**: abrí `https://argentum.onrender.com/health`
-   y esperá a que responda (hasta un minuto).
+1. **Entrá unos minutos antes de jugar**: si el server estaba dormido, la web muestra
+   "Despertando el server…" y sigue sola cuando responde (hasta un minuto). No hace falta abrir
+   `/health` a mano.
 2. Abrí la web, poné un nombre y **Crear partida**.
 3. Abrí el link de la sala en el celular, con datos móviles (no el wifi de tu casa): tiene que
    abrir directo en "Te invitaron a la sala…". Eso prueba la reescritura de `/sala/:codigo`.
@@ -215,15 +218,15 @@ URL y el server los rechaza a propósito. Para probar uno, sumá su URL a `WEB_O
 
 ## Problemas comunes
 
-| Síntoma                                                   | Causa probable y arreglo                                                                                                                                                                            |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| La web dice que no se puede conectar al server            | El server está dormido (esperá un minuto y reintentá). O `WEB_ORIGIN` no coincide **exacto** con la URL de la web: `https`, sin barra final, mismo subdominio. O falta `VITE_SERVER_URL` en Vercel. |
-| El Blueprint falla en el build con "Dockerfile not found" | `dockerfilePath` tiene que ser `./apps/server/Dockerfile` y `dockerContext` `.` (la raíz). Hay un test que lo controla.                                                                             |
-| `/sala/ABC234` da 404 en Vercel                           | El Root Directory del proyecto no es `apps/web`, así que no se leyó `vercel.json`.                                                                                                                  |
-| El build de Vercel falla instalando dependencias          | Mismo motivo (Root Directory), o el `pnpm-lock.yaml` no está commiteado.                                                                                                                            |
-| Las salas desaparecieron                                  | En el plan gratis es esperado después de un reinicio, un deploy o de dormirse (ver el aviso en Logs). Para conservarlas: la alternativa de pago.                                                    |
-| Cambié una variable en el panel de Render y volvió atrás  | El Blueprint la pisó con la de `render.yaml`: cambiala en el archivo.                                                                                                                               |
-| `/dev/scenario/...` responde algo que no es 404           | No debería pasar nunca: `render.yaml` y el Dockerfile fijan `NODE_ENV=production` (hay un test que lo controla).                                                                                    |
+| Síntoma                                                   | Causa probable y arreglo                                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "El server no respondió" con **Reintentar**               | Pasaron ~90 s sin respuesta: el server tarda más de lo normal en despertar (reintentá), o se cayó (mirá **Logs** en Render). Si pasa siempre: `WEB_ORIGIN` no coincide **exacto** con la URL de la web (`https`, sin barra final, mismo subdominio), o falta `VITE_SERVER_URL` en Vercel. |
+| El Blueprint falla en el build con "Dockerfile not found" | `dockerfilePath` tiene que ser `./apps/server/Dockerfile` y `dockerContext` `.` (la raíz). Hay un test que lo controla.                                                                                                                                                                   |
+| `/sala/ABC234` da 404 en Vercel                           | El Root Directory del proyecto no es `apps/web`, así que no se leyó `vercel.json`.                                                                                                                                                                                                        |
+| El build de Vercel falla instalando dependencias          | Mismo motivo (Root Directory), o el `pnpm-lock.yaml` no está commiteado.                                                                                                                                                                                                                  |
+| Las salas desaparecieron                                  | En el plan gratis es esperado después de un reinicio, un deploy o de dormirse (ver el aviso en Logs). Para conservarlas: la alternativa de pago.                                                                                                                                          |
+| Cambié una variable en el panel de Render y volvió atrás  | El Blueprint la pisó con la de `render.yaml`: cambiala en el archivo.                                                                                                                                                                                                                     |
+| `/dev/scenario/...` responde algo que no es 404           | No debería pasar nunca: `render.yaml` y el Dockerfile fijan `NODE_ENV=production` (hay un test que lo controla).                                                                                                                                                                          |
 
 ## Alternativa de pago: Fly.io con disco persistente
 
