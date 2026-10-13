@@ -950,7 +950,6 @@ casos, ninguna falla**. Antes del cambio, la misma cantidad había fallado en la
 
 **Lo único que quedó en cero**: la **quiebra**, en 40 de 200 corridas (avisado, no falla). Es
 esperable en este escenario: cada jugador arranca con $3000 y un grupo completo, y en 300
-acciones (muchas de gestión) rara vez alguien no puede pagar. La quiebra se ejercita más en el
-fuzz general ("cualquier secuencia de acciones legales"), que arranca con $500 o $1500. Si se
+acciones (muchas de gestión) rara vez alguien no puede pagar. La quiebra sí se ejercita en el fuzz general ("cualquier secuencia de acciones legales"), que arranca con $500 o $1500: medido, **117 de 400 casos (29 %)** tienen una quiebra. Si se
 quiere que este escenario la cubra en cada corrida, se podría arrancar con menos plata en una
 parte de los casos. Cambia lo que el escenario prueba, así que no lo hice sin consultarte.
