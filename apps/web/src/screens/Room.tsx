@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { GameScreen } from '../components/game/GameScreen.js';
 import { Lobby } from '../components/lobby/Lobby.js';
+import { ActionError } from '../components/ActionError.js';
 import { Button } from '../components/ui.js';
 import { errorText } from '../game/errorText.js';
 import { t } from '../i18n.js';
 import { loadName, loadSession, saveName } from '../net/session.js';
-import { useGame } from '../store/game.js';
+import { SERVER_UNREACHABLE, useGame } from '../store/game.js';
 
 /**
  * `/sala/:code`: si hay una sesión guardada para esta sala, reconecta con el
@@ -25,16 +26,29 @@ export function Room() {
   const watching = useGame((state) => state.watching);
   const [name, setName] = useState(loadName);
   const [error, setError] = useState<string | null>(null);
+  /** Si el server no despertó: repetir lo mismo (entrar o mirar). */
+  const [retry, setRetry] = useState<(() => void) | null>(null);
   const saved = useMemo(() => loadSession(code), [code]);
   const [resumeFailed, setResumeFailed] = useState(false);
+  /** El server no despertó al volver con la sesión guardada (que se conserva). */
+  const [asleep, setAsleep] = useState(false);
+  /** Sube con cada "Reintentar" de la vuelta: vuelve a correr el efecto. */
+  const [resumeTries, setResumeTries] = useState(0);
   const needsName = saved === null || resumeFailed;
 
   useEffect(() => {
     if (session?.code === code || saved === null) return;
-    void resume(saved).then((ok) => {
-      if (!ok) setResumeFailed(true);
+    void resume(saved).then((result) => {
+      if (result === SERVER_UNREACHABLE) setAsleep(true);
+      else if (result !== true) setResumeFailed(true);
     });
-  }, [code, saved, session, resume]);
+  }, [code, saved, session, resume, resumeTries]);
+
+  /** Muestra el error de entrar o mirar; si el server no despertó, con "Reintentar". */
+  const report = (result: string, again: () => void) => {
+    setError(errorText(result));
+    setRetry(result === SERVER_UNREACHABLE ? () => again : null);
+  };
 
   if (session?.code === code && room !== null) {
     return room.status === 'lobby' ? <Lobby /> : <GameScreen />;
@@ -54,7 +68,17 @@ export function Room() {
   if (!needsName) {
     return (
       <main className="grid min-h-dvh place-items-center p-4">
-        <p role="status">{t('room.connecting')}</p>
+        {asleep ? (
+          <ActionError
+            message={errorText(SERVER_UNREACHABLE)}
+            onRetry={() => {
+              setAsleep(false);
+              setResumeTries((tries) => tries + 1);
+            }}
+          />
+        ) : (
+          <p role="status">{t('room.connecting')}</p>
+        )}
       </main>
     );
   }
@@ -67,9 +91,14 @@ export function Room() {
         onSubmit={(event) => {
           event.preventDefault();
           saveName(name.trim());
-          void join(code, name.trim()).then((result) => {
-            if (typeof result === 'string') setError(errorText(result));
-          });
+          const enter = () => {
+            setError(null);
+            setRetry(null);
+            void join(code, name.trim()).then((result) => {
+              if (typeof result === 'string') report(result, enter);
+            });
+          };
+          enter();
         }}
       >
         <label className="flex flex-col gap-1 font-bold">
@@ -87,21 +116,21 @@ export function Room() {
         <Button type="submit" disabled={name.trim().length === 0 || status === 'connecting'}>
           {t('room.joinButton')}
         </Button>
-        {error !== null && (
-          <p role="alert" className="font-bold text-fileteado">
-            {error}
-          </p>
-        )}
+        {error !== null && <ActionError message={error} onRetry={retry} />}
         <p className="text-sm text-tinta/70">{t('room.watchHint')}</p>
         <Button
           variant="secondary"
           data-testid="watch"
           disabled={status === 'connecting'}
           onClick={() => {
-            setError(null);
-            void watch(code).then((failure) => {
-              if (failure !== null) setError(errorText(failure));
-            });
+            const look = () => {
+              setError(null);
+              setRetry(null);
+              void watch(code).then((failure) => {
+                if (failure !== null) report(failure, look);
+              });
+            };
+            look();
           }}
         >
           {t('room.watch')}

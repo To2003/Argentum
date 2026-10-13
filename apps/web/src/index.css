@@ -328,3 +328,23 @@ body {
 .dice3d-roll {
   animation: dice3d-roll 650ms cubic-bezier(0.25, 0.8, 0.35, 1) both;
 }
+
+/* ---------------------------------------------------------------- espera del server */
+
+.wake-progress {
+  appearance: none;
+  border: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--color-tinta) 15%, transparent);
+}
+.wake-progress::-webkit-progress-bar {
+  background-color: transparent;
+}
+.wake-progress::-webkit-progress-value {
+  background-color: var(--color-sol);
+  transition: width 1s linear;
+}
+.wake-progress::-moz-progress-bar {
+  background-color: var(--color-sol);
+}

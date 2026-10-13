@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { ActionError } from '../components/ActionError.js';
 import { LanguagePicker } from '../components/LanguagePicker.js';
 import { Tutorial } from '../components/Tutorial.js';
 import { Button } from '../components/ui.js';
 import { errorText } from '../game/errorText.js';
 import { t } from '../i18n.js';
 import { loadName, saveName } from '../net/session.js';
-import { useGame } from '../store/game.js';
+import { SERVER_UNREACHABLE, useGame } from '../store/game.js';
 
 /** Inicio (SPEC.md §7.4.1): crear una sala o entrar con un código. */
 export function Landing() {
@@ -16,17 +17,28 @@ export function Landing() {
   const [name, setName] = useState(loadName);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /** Si el server no despertó: repetir lo mismo. */
+  const [retry, setRetry] = useState<(() => void) | null>(null);
   const [busy, setBusy] = useState(false);
   const [tutorial, setTutorial] = useState(false);
 
   const go = async (attempt: () => Promise<{ code: string } | string>) => {
     setBusy(true);
     setError(null);
+    setRetry(null);
     saveName(name.trim());
     const result = await attempt().catch(() => 'generic');
     setBusy(false);
-    if (typeof result === 'string') setError(errorText(result));
-    else void navigate(`/sala/${result.code}`);
+    if (typeof result !== 'string') {
+      void navigate(`/sala/${result.code}`);
+      return;
+    }
+    setError(errorText(result));
+    if (result === SERVER_UNREACHABLE) {
+      setRetry(() => () => {
+        void go(attempt);
+      });
+    }
   };
 
   const validName = name.trim().length > 0;
@@ -90,11 +102,7 @@ export function Landing() {
             {t('landing.join')}
           </Button>
         </div>
-        {error !== null && (
-          <p role="alert" className="font-bold text-fileteado">
-            {error}
-          </p>
-        )}
+        {error !== null && <ActionError message={error} onRetry={retry} />}
       </form>
 
       <section>

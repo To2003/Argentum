@@ -184,6 +184,13 @@ export const esAR = {
   'room.joinTitle': 'Te invitaron a la sala {code}',
   'room.joinButton': 'Entrar',
   'room.connecting': 'Conectando…',
+  'wake.title': 'Despertando el server…',
+  'wake.body': 'Puede tardar hasta un minuto: el server gratis se duerme cuando nadie juega.',
+  'wake.elapsed': 'Van {seconds} s',
+  'wake.progress': 'Espera del server',
+  'wake.retry': 'Reintentar',
+  'error.SERVER_UNREACHABLE':
+    'El server no respondió. Puede estar caído o tardar más de lo normal.',
   'room.reconnecting': 'Se cortó la conexión. Reconectando…',
   'room.leave': 'Salir de la sala',
   'lobby.share': 'Pasales el código o el link para que entren',

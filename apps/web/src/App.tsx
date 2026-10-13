@@ -1,6 +1,7 @@
 import { Fragment, lazy, Suspense } from 'react';
 import { Route, Routes, useSearchParams } from 'react-router';
 import { ErrorBanner } from './components/ErrorBanner.js';
+import { WakeNotice } from './components/WakeNotice.js';
 import { useLocale } from './i18n.js';
 import { Landing } from './screens/Landing.js';
 import { NotFound } from './screens/NotFound.js';
@@ -29,6 +30,7 @@ export function App() {
   return (
     <Fragment key={locale}>
       <ErrorBanner />
+      <WakeNotice />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route

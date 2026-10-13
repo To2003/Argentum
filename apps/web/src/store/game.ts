@@ -9,7 +9,8 @@ import type {
 } from '@gran-negocio/server/protocol';
 import { CHAT_HISTORY, type EmoteId, type RulesOverrides } from '@gran-negocio/shared';
 import { create } from 'zustand';
-import { getSocket } from '../net/client.js';
+import { getSocket, pingHealth, request, type EnterEvent } from '../net/client.js';
+import { WakeTimeout, withWake } from '../net/wake.js';
 import { forgetSession, saveSession } from '../net/session.js';
 
 /** Un evento con número, para listas y animaciones. */
@@ -23,6 +24,10 @@ const LOG_LIMIT = 200;
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting';
 
+/** El server no despertó a tiempo (ver net/wake.ts). Lo decide el cliente, no el server. */
+export const SERVER_UNREACHABLE = 'SERVER_UNREACHABLE';
+export type ClientError = ServerError | typeof SERVER_UNREACHABLE;
+
 interface GameStore {
   status: ConnectionStatus;
   session: Session | null;
@@ -31,6 +36,8 @@ interface GameStore {
   chat: readonly ChatMessage[];
   /** Estadísticas de fin de partida (M9); null mientras se juega. */
   stats: GameStats | null;
+  /** Desde cuándo se espera que el server despierte (epoch ms), o null. */
+  waking: number | null;
   room: RoomState | null;
   view: PlayerView | null;
   timers: readonly TimerState[];
@@ -42,12 +49,13 @@ interface GameStore {
   /** Sube con cada snapshot o actualización: dispara la animación de esa tanda. */
   updateSeq: number;
 
-  create: (name: string) => Promise<Session | ServerError>;
-  join: (code: string, name: string) => Promise<Session | ServerError>;
-  watch: (code: string) => Promise<ServerError | null>;
+  create: (name: string) => Promise<Session | ClientError>;
+  join: (code: string, name: string) => Promise<Session | ClientError>;
+  watch: (code: string) => Promise<ClientError | null>;
   rematch: () => Promise<void>;
   sendChat: (message: { text: string } | { emote: EmoteId }) => Promise<void>;
-  resume: (session: Session) => Promise<boolean>;
+  /** true si volvió a la sala; si no, por qué (con SERVER_UNREACHABLE la sesión se conserva). */
+  resume: (session: Session) => Promise<true | ClientError>;
   leave: () => Promise<void>;
   setToken: (tokenId: string) => Promise<void>;
   setReady: (ready: boolean) => Promise<void>;
@@ -117,17 +125,47 @@ export const useGame = create<GameStore>()((set, get) => {
     });
   };
 
+  /**
+   * Un pedido para entrar a una sala. Si el server no responde (Render gratis
+   * dormido), espera a que despierte y lo reintenta (net/wake.ts).
+   */
+  const reach = async <T>(
+    event: EnterEvent,
+    payload: object,
+  ): Promise<T | typeof SERVER_UNREACHABLE> => {
+    try {
+      return await withWake(() => request<T>(event, payload), {
+        now: () => Date.now(),
+        sleep: (ms) =>
+          new Promise((resolve) => {
+            setTimeout(resolve, ms);
+          }),
+        ping: pingHealth,
+        onWaking: (since) => {
+          set({ waking: since });
+        },
+      });
+    } catch (error) {
+      if (error instanceof WakeTimeout) return SERVER_UNREACHABLE;
+      throw error;
+    } finally {
+      set({ waking: null });
+    }
+  };
+
   const enter = async (
     event: 'room:create' | 'room:join' | 'room:resume',
     payload: object,
-  ): Promise<Session | ServerError> => {
+  ): Promise<Session | ClientError> => {
     wire();
     // Limpiar ANTES de entrar: el server manda el snapshot antes de responder
     // el ack, y limpiar después borraba la partida recién recibida.
     set({ status: 'connecting', log: [], view: null, chat: [], stats: null, watching: null });
-    const reply = (await getSocket().timeout(8000).emitWithAck(event, payload)) as Ack<{
-      session: Session;
-    }>;
+    const reply = await reach<Ack<{ session: Session }>>(event, payload);
+    if (reply === SERVER_UNREACHABLE) {
+      set({ status: 'idle' });
+      return reply;
+    }
     if (!reply.ok) {
       set({ status: 'idle' });
       return reply.error;
@@ -148,6 +186,7 @@ export const useGame = create<GameStore>()((set, get) => {
     watching: null,
     chat: [],
     stats: null,
+    waking: null,
     room: null,
     view: null,
     timers: [],
@@ -161,7 +200,11 @@ export const useGame = create<GameStore>()((set, get) => {
     watch: async (code) => {
       wire();
       set({ status: 'connecting', log: [], view: null, chat: [], stats: null, session: null });
-      const reply = (await getSocket().timeout(8000).emitWithAck('room:watch', { code })) as Ack;
+      const reply = await reach<Ack>('room:watch', { code });
+      if (reply === SERVER_UNREACHABLE) {
+        set({ status: 'idle', watching: null });
+        return reply;
+      }
       if (!reply.ok) {
         set({ status: 'idle', watching: null });
         return reply.error;
@@ -174,10 +217,12 @@ export const useGame = create<GameStore>()((set, get) => {
       simple(() => getSocket().timeout(8000).emitWithAck('chat:send', message)),
     resume: async (session) => {
       const result = await enter('room:resume', { code: session.code, token: session.token });
+      // El server dormido no invalida la sesión: se conserva para reintentar.
+      if (result === SERVER_UNREACHABLE) return result;
       if (typeof result === 'string') {
         forgetSession(session.code);
         set({ session: null, error: result });
-        return false;
+        return result;
       }
       return true;
     },
