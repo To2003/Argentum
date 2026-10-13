@@ -781,6 +781,12 @@ segundos. Esa primera acción puede fallar con un error genérico, aunque reinte
 guía lo dice ("despertalo con `/health` y esperá"). Un arreglo posible: que el cliente muestre
 "Despertando el server…" y reintente mientras el socket se conecta.
 
-**Proceso**: un commit falló en el hook de commitlint (asunto con mayúscula inicial).
+**Proceso**: la verificación sobre el clon limpio falló la primera vez por **mis tests nuevos**,
+no por el código. El clon vive en `/tmp`, así que la base por defecto (`./data`) y la carpeta
+"de disco" que usaba el test caían dentro de un temporal, y el aviso salía. El aviso era
+correcto: el test suponía dónde estaba el repo. Ahora los tests pasan temporales explícitos y
+usan una carpeta del home para el caso persistente (commit `60107f5`).
+
+Además, un commit falló en el hook de commitlint (asunto con mayúscula inicial).
 `render.yaml` y su test ya estaban en stage y quedaron dentro del commit siguiente, el de docs
 (`df2acfa`), en vez de uno propio. No reescribí la historia.
