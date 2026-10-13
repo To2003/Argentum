@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { checkProperty } from './fuzzReport.js';
 import {
   createRng,
   isSeed,
@@ -77,10 +78,12 @@ describe('rng (sfc32)', () => {
   });
 
   it('mismo seed, misma secuencia (determinismo)', () => {
-    fc.assert(
+    checkProperty(
+      'mismo seed, misma secuencia (determinismo)',
       fc.property(seedArb, (seed) => {
         expect(rollMany(createRng(seed), 50)).toEqual(rollMany(createRng(seed), 50));
       }),
+      {},
     );
   });
 
@@ -110,12 +113,14 @@ describe('rng (sfc32)', () => {
   });
 
   it('nextFloat queda en [0, 1)', () => {
-    fc.assert(
+    checkProperty(
+      'nextFloat queda en [0, 1)',
       fc.property(seedArb, (seed) => {
         const { value } = nextFloat(createRng(seed));
         expect(value).toBeGreaterThanOrEqual(0);
         expect(value).toBeLessThan(1);
       }),
+      {},
     );
   });
 
@@ -144,13 +149,15 @@ describe('rng (sfc32)', () => {
   });
 
   it('shuffle es una permutación y no muta la entrada', () => {
-    fc.assert(
+    checkProperty(
+      'shuffle es una permutación y no muta la entrada',
       fc.property(seedArb, fc.array(fc.integer()), (seed, items) => {
         const copy = [...items];
         const { value } = shuffle(createRng(seed), items);
         expect(items).toEqual(copy);
         expect([...value].sort((a, b) => a - b)).toEqual([...items].sort((a, b) => a - b));
       }),
+      {},
     );
   });
 });

@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { DEFAULT_RULES, DECKS } from '@gran-negocio/shared';
 import { describe, expect, it } from 'vitest';
+import { checkProperty } from './fuzzReport.js';
 import { createGame, type GameEvent } from '../src/index.js';
 import { SEED } from './support.js';
 
@@ -58,7 +59,8 @@ describe('createGame', () => {
   });
 
   it('orden de turno: suma de 2 dados, de mayor a menor; los empatados re-tiran entre ellos', () => {
-    fc.assert(
+    checkProperty(
+      'orden de turno: suma de 2 dados, de mayor a menor; los empatados re-tiran entre ellos',
       fc.property(seedArb, fc.integer({ min: 2, max: 6 }), (seed, n) => {
         const ids = players(n).map((p) => p.id);
         const { state, events } = createGame({ seed, players: players(n) });
