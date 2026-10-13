@@ -182,6 +182,26 @@ export interface PlayResult {
   readonly events: readonly GameEvent[];
 }
 
+/**
+ * Una falla en medio de una partida al azar, con lo necesario para
+ * reproducirla: las acciones aplicadas hasta ahí (la última es la que rompió
+ * una invariante, si fue eso) y el paso del bucle.
+ */
+export class FuzzFailure extends Error {
+  readonly log: readonly LoggedAction[];
+  readonly step: number;
+  override readonly cause: unknown;
+
+  constructor(cause: unknown, log: readonly LoggedAction[], step: number) {
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    super(`falla en el paso ${step} (después de ${log.length} acciones): ${reason}`);
+    this.name = 'FuzzFailure';
+    this.log = log;
+    this.step = step;
+    this.cause = cause;
+  }
+}
+
 const snapshot = (state: GameState) => JSON.stringify(state);
 
 type Pick = (bound: number) => number;
@@ -254,7 +274,6 @@ export function randomPlay(
   const log: LoggedAction[] = [];
   const ledger = new Ledger(state);
   ledger.record(created.events);
-  checkInvariants(state, ledger);
   // Las estadísticas (M9) tienen que cerrar con el efectivo de cada uno.
   const startCash = Object.fromEntries(Object.values(state.players).map((p) => [p.id, p.cash]));
   let stats = emptyStats(state);
@@ -294,43 +313,51 @@ export function randomPlay(
     return result.ok;
   };
 
-  for (let step = 0; step < options.steps; step += 1) {
-    if (options.maxTurns !== undefined && state.turnNumber > options.maxTurns) break;
-    if (state.phase.kind === 'gameOver') break;
+  let step = 0;
+  try {
+    // El escenario armado (prepare) también tiene que cumplir las invariantes.
+    checkInvariants(state, ledger);
+    for (; step < options.steps; step += 1) {
+      if (options.maxTurns !== undefined && state.turnNumber > options.maxTurns) break;
+      if (state.phase.kind === 'gameOver') break;
 
-    // Una acción al azar de un jugador al azar: si se rechaza, no cambia nada.
-    const someone = playerIds[pick(playerIds.length)] ?? 'p1';
-    const candidate = CANDIDATE_ACTIONS[pick(CANDIDATE_ACTIONS.length)] ?? { type: 'endTurn' };
-    probe(someone, candidate);
+      // Una acción al azar de un jugador al azar: si se rechaza, no cambia nada.
+      const someone = playerIds[pick(playerIds.length)] ?? 'p1';
+      const candidate = CANDIDATE_ACTIONS[pick(CANDIDATE_ACTIONS.length)] ?? { type: 'endTurn' };
+      probe(someone, candidate);
 
-    // Muy de vez en cuando se acaba el tiempo (solo si la sala tiene partida corta).
-    if (state.rules.gameDurationMinutes !== null && pick(400) === 0) {
-      apply('system', { type: 'timeUp' });
-      break;
-    }
-
-    const actors = actorsOf(state).filter((id) => legalActions(state, id).length > 0);
-    const actor = actors[pick(actors.length)];
-    if (actor === undefined) throw new Error('nadie puede actuar');
-
-    // Una de cada tantas: una acción con parámetros libres, si resulta legal.
-    if (pick(6) === 0) {
-      const extras = extraCandidates(state, actor, pick);
-      const extra = extras[pick(extras.length)];
-      if (extra !== undefined && probe(actor, extra)) {
-        apply(actor, extra);
-        continue;
+      // Muy de vez en cuando se acaba el tiempo (solo si la sala tiene partida corta).
+      if (state.rules.gameDurationMinutes !== null && pick(400) === 0) {
+        apply('system', { type: 'timeUp' });
+        break;
       }
-    }
 
-    const legal = legalActions(state, actor);
-    const { prefer } = options;
-    const preferred =
-      prefer === undefined ? [] : legal.filter((candidate) => prefer.includes(candidate.type));
-    const pool = preferred.length > 0 && pick(2) === 0 ? preferred : legal;
-    const action = pool[pick(pool.length)];
-    if (action === undefined) throw new Error('sin acciones legales');
-    apply(actor, action);
+      const actors = actorsOf(state).filter((id) => legalActions(state, id).length > 0);
+      const actor = actors[pick(actors.length)];
+      if (actor === undefined) throw new Error('nadie puede actuar');
+
+      // Una de cada tantas: una acción con parámetros libres, si resulta legal.
+      if (pick(6) === 0) {
+        const extras = extraCandidates(state, actor, pick);
+        const extra = extras[pick(extras.length)];
+        if (extra !== undefined && probe(actor, extra)) {
+          apply(actor, extra);
+          continue;
+        }
+      }
+
+      const legal = legalActions(state, actor);
+      const { prefer } = options;
+      const preferred =
+        prefer === undefined ? [] : legal.filter((candidate) => prefer.includes(candidate.type));
+      const pool = preferred.length > 0 && pick(2) === 0 ? preferred : legal;
+      const action = pool[pick(pool.length)];
+      if (action === undefined) throw new Error('sin acciones legales');
+      apply(actor, action);
+    }
+  } catch (error) {
+    // Cualquier falla sale con la secuencia que la produjo (ver fuzzReport.ts).
+    throw new FuzzFailure(error, [...log], step);
   }
   return { state, log, events };
 }
