@@ -25,12 +25,13 @@ jobs:
       - run: pnpm format:check
       - run: pnpm test:coverage
       # Si falla una propiedad del fuzz, su contraejemplo (seed, path, acciones y
-      # cómo reproducirlo) queda en test-results/fuzz-failure-*.json.
+      # cómo reproducirlo) queda en test-results/fuzz-failure-*.json, y la
+      # cobertura de la corrida en fuzz-coverage-*.json.
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: fuzz-failure-${{ matrix.os }}
-          path: test-results/fuzz-failure-*.json
+          path: test-results/fuzz-*.json
           if-no-files-found: ignore
       - run: pnpm build
 
