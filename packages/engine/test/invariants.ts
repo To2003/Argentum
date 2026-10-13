@@ -259,12 +259,14 @@ export function randomPlay(
     /** Arma un escenario sobre la partida recién creada (p. ej. una partida avanzada). */
     readonly prepare?: (state: GameState) => void;
     /**
-     * Tipos de acción a favorecer: si el actor tiene alguno legal, la mitad de
-     * las veces elige entre esos. Sin esto, en una partida avanzada la
-     * política se iba a hipotecar y trocar (hay muchas más opciones de eso) y a
-     * veces nunca construía. Sin `prefer`, el azar es exactamente el de antes.
+     * Mientras nadie haya construido en la partida, si quien actúa puede
+     * construir, construye. Desde la primera construcción, la política vuelve
+     * a ser al azar entre las acciones legales (hipotecas, ventas, hoteles y
+     * trueques sobre grupos ya construidos). Sin esto, la política podía
+     * desarmar todos los grupos antes de construir (REVIEW, fuzz de partida
+     * avanzada). Sin `buildFirst`, el azar es exactamente el de antes.
      */
-    readonly prefer?: readonly Action['type'][];
+    readonly buildFirst?: boolean;
   },
 ): PlayResult {
   const created = createGame(setup);
@@ -285,6 +287,8 @@ export function randomPlay(
     return draw.value;
   };
   const playerIds = Object.keys(state.players);
+  /** ¿Ya se construyó algo en esta partida? (para `buildFirst`; lo actualiza `apply`). */
+  const progress = { built: false };
 
   const apply = (playerId: PlayerId, action: Action) => {
     const result = applyAction(state, playerId, action);
@@ -294,6 +298,7 @@ export function randomPlay(
     state = result.state;
     log.push({ playerId, action });
     events.push(...result.events);
+    if (result.events.some((event) => event.type === 'buildingBuilt')) progress.built = true;
     ledger.record(result.events);
     checkInvariants(state, ledger);
     stats = recordStats(stats, state, result.events);
@@ -336,6 +341,16 @@ export function randomPlay(
       const actor = actors[pick(actors.length)];
       if (actor === undefined) throw new Error('nadie puede actuar');
 
+      // Hasta la primera construcción, construir tiene prioridad (ver `buildFirst`).
+      if (options.buildFirst === true && !progress.built) {
+        const builds = legalActions(state, actor).filter((action) => action.type === 'buildHouse');
+        const build = builds[pick(builds.length)];
+        if (build !== undefined) {
+          apply(actor, build);
+          continue;
+        }
+      }
+
       // Una de cada tantas: una acción con parámetros libres, si resulta legal.
       if (pick(6) === 0) {
         const extras = extraCandidates(state, actor, pick);
@@ -347,11 +362,7 @@ export function randomPlay(
       }
 
       const legal = legalActions(state, actor);
-      const { prefer } = options;
-      const preferred =
-        prefer === undefined ? [] : legal.filter((candidate) => prefer.includes(candidate.type));
-      const pool = preferred.length > 0 && pick(2) === 0 ? preferred : legal;
-      const action = pool[pick(pool.length)];
+      const action = legal[pick(legal.length)];
       if (action === undefined) throw new Error('sin acciones legales');
       apply(actor, action);
     }

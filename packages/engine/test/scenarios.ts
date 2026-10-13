@@ -55,7 +55,8 @@ export const advancedArbs = [setupArb, hex32, fc.boolean(), fc.boolean()] as con
 
 /**
  * Todos los grupos repartidos, $3000 cada uno y, con `scarce`, 30 casas ya
- * construidas (quedan 2 en el banco). La política favorece construir y vender.
+ * construidas (quedan 2 en el banco). Hasta la primera construcción, la
+ * política construye apenas puede; después elige al azar.
  */
 export function playAdvanced(
   setup: GameSetup,
@@ -69,8 +70,8 @@ export function playAdvanced(
     {
       steps: 300,
       policySeed,
-      // Que la partida construya y venda de verdad (es lo que se prueba).
-      prefer: ['buildHouse', 'sellBuilding', 'sellAllBuildings'],
+      // Construir apenas se pueda hasta la primera construcción; después, al azar.
+      buildFirst: true,
       prepare: (state) => {
         const ids = Object.keys(state.players);
         COLOR_GROUPS.forEach((group, i) => {
