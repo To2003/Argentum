@@ -846,8 +846,74 @@ la misma persona. Ahora los pedidos de entrada **solo se emiten con el socket co
 | ------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `web/test/App.test.tsx` (M0/M5), sala | La espera del chunk lazy pasa de 1 s (default) a 5 s | En la suite completa en paralelo, con los archivos de test nuevos, el chunk tardaba 1,02–1,06 s y fallaba 4 de 4 corridas. Solo, pasa. Con 5 s pasa 3 de 3, con la misma aserción: verifica que la sala pida el nombre, no la velocidad de carga. |
 
-**Una falla que no pude reproducir**: en una corrida de la suite completa falló una vez el fuzz
-de "partida avanzada" (M3), a los 83 s, y no quedó el detalle. Lo corrí solo 6 veces y barrí
-3000 casos de ese escenario atrapando cualquier error: **0 fallas de invariantes y 0 casos sin
-construcción**. Queda anotado. Si vuelve a aparecer, el mensaje de fast-check trae el seed para
-reproducirlo.
+**Una falla que no pude reproducir**: ver "Fuzz de partida avanzada: fallas reproducibles" más
+abajo. Ya se reprodujo y se explica.
+
+### Fuzz de partida avanzada: fallas reproducibles (y la causa)
+
+**Qué cambió**:
+
+- **`checkProperty`** (`packages/engine/test/fuzzReport.ts`) reemplaza a `fc.assert` en todas
+  las propiedades de fast-check. Si una falla:
+  - el error trae, completos, **seed, path y contraejemplo mínimo**; en las partidas, también
+    cuántas acciones hubo y en qué paso falló;
+  - se escribe `test-results/fuzz-failure-<propiedad>.json`, con **la secuencia de acciones** y
+    el comando para reproducirlo en bash y en PowerShell;
+  - con `FUZZ_SEED` y `FUZZ_PATH` se corre exactamente ese caso: verificado, da el mismo
+    contraejemplo y las mismas 300 acciones con un solo caso.
+
+  Tests en `fuzzReport.test.ts`: mensaje completo, archivo, reproducción, contraejemplo largo
+  sin truncar, y secuencia de acciones de una falla en medio de una partida.
+
+- **`randomPlay`** envuelve cualquier falla en `FuzzFailure`, con las acciones aplicadas y el
+  paso. Antes, una invariante rota se perdía sin la secuencia que la produjo.
+- **Sin truncar**: `chaiConfig.truncateThreshold: 0` en el proyecto del engine, para que los
+  objetos de un `expect` fallido no salgan como `{ …(3) }`. El contraejemplo se imprime con
+  `fc.stringify`, completo.
+- **CI**: si falla el job `check`, sube `test-results/fuzz-failure-*.json` como artefacto
+  `fuzz-failure-<os>`.
+- **`pnpm fuzz:loop [N] [--workers W] [--seed S]`**: corre el escenario N veces (40 casos cada
+  una, como el test) con semillas consecutivas desde S (al azar si no se da), repartidas en W
+  procesos. Se detiene en la primera falla mostrando todo el detalle.
+- Los escenarios del fuzz pasaron a `scenarios.ts`, compartido por el test y el loop. Mismas
+  propiedades, cantidad de casos, invariantes y aserciones.
+- **Proceso**: el commit `21b2257` ("docs: fuzz failures are reproducible…") salió solo con el
+  README, porque la edición del REVIEW falló en el script. Esta sección va en el commit
+  siguiente; no reescribí la historia.
+
+**Resultado de `pnpm fuzz:loop 200`** (6 procesos, 7 min 44 s): **falló en la corrida 164**
+(seed `1456682973`, path `37:47:44:44:44:44:124`), después de 194 corridas sin fallas. Antes, la
+verificación del engine ya había atrapado otra (seed `1030703264`, path `13:6:86:86:86`). Las dos
+son la misma falla: **"la partida no construyó nada"**. **Ninguna es una invariante rota**:
+32/12, construcción pareja, hipotecas, contabilidad y estadísticas se cumplieron en los 300
+pasos de las dos.
+
+**Diagnóstico: es un problema del escenario, no del engine.** Reproduje las dos secuencias paso
+a paso:
+
+|                                                                     | 1.ª (6 jugadores)                                     | 2.ª (4 jugadores)                                     |
+| ------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------- |
+| Pasos en que quien actuaba podía construir                          | 4 (con 2–3 opciones de construir)                     | 8 (con 2–6 opciones)                                  |
+| Qué eligió la política en esos pasos                                | hipotecar ×3, trueque                                 | hipotecar ×4, trueque ×3, tirar                       |
+| Grupos completos y sin hipotecas (pasos 0 / 25 / 50 / 75 / … / 275) | 8 / 4 / 1 / 0 / … / 0                                 | 8 / 3 / 3 / 0 / … / 0                                 |
+| Acciones más elegidas                                               | hipotecar 92, levantar 80, trueques 36 + 17 aceptados | hipotecar 90, levantar 76, trueques 39 + 16 aceptados |
+
+- **El engine hizo lo correcto**: ofreció construir cuando el grupo estaba completo y sin
+  hipotecas, y dejó de ofrecerlo cuando una hipoteca o un trueque lo desarmaban. Es la regla
+  (§5.3). Ninguna invariante se rompió.
+- **El escenario no garantiza su propia condición**: la propiedad exige que se construya, pero
+  la política al azar puede desarmar todos los grupos de forma legal antes de elegir construir.
+  `prefer` lo hizo raro (1 en ~8000 casos), no imposible.
+
+**No toqué el test ni la invariante**, como pediste. Hoy el test de "partida avanzada" falla en
+**~0,5 % de las corridas** (40 casos cada una). Opciones para que decidas:
+
+1. **Garantizar la condición en el escenario**: mientras nadie haya construido, si construir es
+   legal para quien actúa, la política construye. Las invariantes y el chequeo quedan iguales,
+   y el escenario ejercita la construcción siempre.
+2. **Separar las dos cosas**: las invariantes se siguen exigiendo en cada caso, pero el "hubo
+   construcción" pasa a ser un mínimo sobre todos los casos (por ejemplo, ≥ 95 % construyen).
+3. **Sacar hipotecas y trueques de ese escenario**. No lo recomiendo: es lo que más ejercita la
+   interacción con la construcción.
+
+Mi recomendación es la 1.
