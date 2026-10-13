@@ -1,16 +1,18 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createGameServer, type GameServer } from '../src/app.js';
-import { readConfig } from '../src/config.js';
+import { isInsideTemp, readConfig } from '../src/config.js';
 
 describe('configuración por entorno', () => {
   it('valores por defecto (desarrollo)', () => {
-    expect(readConfig({})).toEqual({
+    // Temporales explícitos: el resultado no depende de dónde esté el repo
+    // (un clon en /tmp haría efímera la base por defecto, y con razón).
+    expect(readConfig({}, ['/no-es-un-temporal'])).toEqual({
       port: 3001,
       allowedOrigins: ['http://localhost:5173'],
       dbPath: './data/gran-negocio.db',
@@ -28,7 +30,8 @@ describe('configuración por entorno', () => {
     expect(readConfig({ DB_PATH: '/data/gn.db' }, temp).ephemeralStorage).toBe(false);
     // Que el nombre empiece igual no alcanza: /tmpfoo no es /tmp.
     expect(readConfig({ DB_PATH: '/tmpfoo/gn.db' }, temp).ephemeralStorage).toBe(false);
-    expect(readConfig({}, temp).ephemeralStorage).toBe(false);
+    // Una ruta relativa se resuelve contra el directorio actual.
+    expect(readConfig({ DB_PATH: 'data/gn.db' }, [process.cwd()]).ephemeralStorage).toBe(true);
   });
 
   it('lee las variables; WEB_ORIGIN admite varios orígenes separados por comas', () => {
@@ -135,14 +138,20 @@ describe('SEGURIDAD: el proceso real del server', () => {
     expect(lastOutput).toContain('NO sobreviven a un reinicio');
   }, 30_000);
 
-  it('con la base fuera de los temporales (un disco), no hay aviso', async () => {
-    // Una carpeta del repo que git ignora (node_modules).
-    const disk = fileURLToPath(new URL('../node_modules/.cache/gn-config-disk', import.meta.url));
-    await boot('production', disk);
-    // Margen para que llegue stderr, si hubiera algo.
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    expect(lastOutput).not.toContain('AVISO');
-  }, 30_000);
+  // Una carpeta fuera de los temporales: en el home (el repo puede estar en /tmp,
+  // como el clon limpio de la verificación). Se saltea si el home es temporal.
+  const disk = join(homedir(), '.cache', 'gran-negocio-test');
+  it.skipIf(isInsideTemp(disk, [tmpdir(), '/tmp']))(
+    'con la base fuera de los temporales (un disco), no hay aviso',
+    async () => {
+      await boot('production', disk);
+      // Margen para que llegue stderr, si hubiera algo.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(lastOutput).not.toContain('AVISO');
+      rmSync(disk, { recursive: true, force: true });
+    },
+    30_000,
+  );
 
   it('con NODE_ENV=production, /dev/scenario responde 404', async () => {
     const url = await boot('production');
