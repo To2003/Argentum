@@ -34,6 +34,59 @@ console.log(
     `${String(base)}…${String(base + runs - 1)}, ${String(workers)} procesos`,
 );
 
+/** Lo que cada corrida reporta de cobertura (ver packages/engine/test/scenarios.ts). */
+interface RunCoverage {
+  readonly cases: number;
+  readonly hits: Record<string, number>;
+  readonly gaps: readonly string[];
+}
+
+const LABELS: Readonly<Record<string, string>> = {
+  houses: 'construyeron casas',
+  hotel: 'llegaron a hotel',
+  soldBuilding: 'vendieron edificios',
+  mortgagedBuiltGroup: 'hipotecaron un grupo con edificios',
+  scarcityAuction: 'subasta por escasez de casas',
+  bankruptcy: 'quiebra',
+};
+
+const coverages: RunCoverage[] = [];
+const warnings: string[] = [];
+
+function recordCoverage(line: string): void {
+  const run = /corrida=(\d+) seed=(\d+)/.exec(line);
+  const json = line.slice(line.indexOf('cobertura=') + 'cobertura='.length);
+  const coverage = JSON.parse(json) as RunCoverage;
+  coverages.push(coverage);
+  if (coverage.gaps.length > 0) {
+    warnings.push(
+      `  ADVERTENCIA corrida ${run?.[1] ?? '?'} (seed ${run?.[2] ?? '?'}): ningún caso ` +
+        coverage.gaps.map((key) => LABELS[key] ?? key).join(', '),
+    );
+  }
+}
+
+function printCoverage(): void {
+  if (coverages.length === 0) return;
+  const cases = coverages.reduce((sum, run) => sum + run.cases, 0);
+  console.log(`\nCobertura (${String(coverages.length)} corridas, ${String(cases)} casos):`);
+  for (const [key, label] of Object.entries(LABELS)) {
+    const total = coverages.reduce((sum, run) => sum + (run.hits[key] ?? 0), 0);
+    const perRun = coverages.map((run) => run.hits[key] ?? 0);
+    const zero = perRun.filter((hits) => hits === 0).length;
+    console.log(
+      `  ${label.padEnd(36)} ${String(total).padStart(6)} casos (${((100 * total) / cases).toFixed(1)} %)` +
+        ` · mínimo por corrida ${String(Math.min(...perRun))}/40 · corridas en cero: ${String(zero)}`,
+    );
+  }
+  if (warnings.length > 0) {
+    console.log(`\n${String(warnings.length)} corridas con algo en cero:`);
+    for (const warning of warnings) console.log(warning);
+  } else {
+    console.log('\nNinguna corrida dejó una categoría en cero.');
+  }
+}
+
 const children: ChildProcess[] = [];
 const started = Date.now();
 const seconds = () => Math.round((Date.now() - started) / 1000);
@@ -85,13 +138,14 @@ for (let w = 0; w < workers; w += 1) {
       pending = pending.slice(newline + 1);
       if (line.startsWith('LOOP OK')) {
         done += 1;
+        recordCoverage(line);
         if (done % 10 === 0) {
           console.log(
             `  ${String(done)}/${String(runs)} corridas sin fallas (${String(seconds())} s)`,
           );
         }
       } else if (line.startsWith('LOOP FAIL')) {
-        failure ??= line.replace('LOOP FAIL ', '');
+        failure ??= line.replace('LOOP FAIL ', '').replace(/ cobertura=.*/, '');
       }
       newline = pending.indexOf('\n');
     }
@@ -105,6 +159,7 @@ for (let w = 0; w < workers; w += 1) {
     if (failure !== null) {
       console.log(`\nFALLA en ${failure}, después de ${String(done)} corridas sin fallas:`);
       for (const line of output.split('\n')) if (DETAIL.test(line)) console.log(line.trimEnd());
+      printCoverage();
       process.exitCode = 1;
     } else {
       console.log(output);
@@ -117,6 +172,7 @@ for (let w = 0; w < workers; w += 1) {
 
 process.on('exit', () => {
   if (process.exitCode === undefined || process.exitCode === 0) {
+    printCoverage();
     console.log(
       `\nOK: ${String(done)} corridas (${String(done * CASES_PER_RUN)} casos) sin fallas en ${String(seconds())} s.`,
     );
