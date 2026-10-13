@@ -22,16 +22,17 @@ pnpm dev           # web en http://localhost:5173, server en http://localhost:30
 
 ## Scripts
 
-| Comando              | Qué hace                                                  |
-| -------------------- | --------------------------------------------------------- |
-| `pnpm dev`           | Levanta web y server en paralelo (Turborepo).             |
-| `pnpm build`         | Build de producción de web (Vite) y server (tsup).        |
-| `pnpm typecheck`     | `tsc --build` sobre todo el monorepo.                     |
-| `pnpm lint`          | ESLint (incluye las reglas de pureza del engine).         |
-| `pnpm format`        | Prettier.                                                 |
-| `pnpm test`          | Vitest: engine, shared, server y web.                     |
-| `pnpm test:coverage` | Igual, con cobertura (el engine exige ≥ 90 %).            |
-| `pnpm e2e`           | Playwright (desktop + mobile); levanta web y server solo. |
+| Comando              | Qué hace                                                                   |
+| -------------------- | -------------------------------------------------------------------------- |
+| `pnpm dev`           | Levanta web y server en paralelo (Turborepo).                              |
+| `pnpm build`         | Build de producción de web (Vite) y server (tsup).                         |
+| `pnpm typecheck`     | `tsc --build` sobre todo el monorepo.                                      |
+| `pnpm lint`          | ESLint (incluye las reglas de pureza del engine).                          |
+| `pnpm format`        | Prettier.                                                                  |
+| `pnpm test`          | Vitest: engine, shared, server y web.                                      |
+| `pnpm test:coverage` | Igual, con cobertura (el engine exige ≥ 90 %).                             |
+| `pnpm e2e`           | Playwright (desktop + mobile); levanta web y server solo.                  |
+| `pnpm fuzz:loop`     | Fuzz de partida avanzada N veces (200 por defecto) hasta la primera falla. |
 
 ## Estructura
 
