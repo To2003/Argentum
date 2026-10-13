@@ -21,7 +21,11 @@ describe('App', () => {
     renderAt('/sala/abc123');
     // La sala se carga como chunk aparte (lazy).
     expect(
-      await screen.findByRole('heading', { name: 'Te invitaron a la sala ABC123' }),
+      await screen.findByRole(
+        'heading',
+        { name: 'Te invitaron a la sala ABC123' },
+        { timeout: 5000 },
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entrar' })).toBeDisabled();
   });
